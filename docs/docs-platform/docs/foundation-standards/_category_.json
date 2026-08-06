@@ -1,0 +1,8 @@
+{
+  "label": "Foundation Standards (SAFS)",
+  "position": 1,
+  "link": {
+    "type": "generated-index",
+    "description": "The baseline standards governing Simplicion Academy terminology, data models, components, design, and content."
+  }
+}

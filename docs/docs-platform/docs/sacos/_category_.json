@@ -1,0 +1,8 @@
+{
+  "label": "SACOS (Content Operating System)",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "The operating system volumes defining governance, curriculum, video, assessment, quality, and AI workflows."
+  }
+}
