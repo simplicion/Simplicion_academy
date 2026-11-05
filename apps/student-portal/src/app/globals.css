@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-primary: #1e3a8a;
+  --brand-primary-hover: #172554;
+  --brand-accent: #f59e0b;
+  --brand-radius: 12px;
+  --brand-font: "Noto Sans Devanagari", Inter, sans-serif;
+}
+
+body {
+  font-family: var(--brand-font);
+}
+

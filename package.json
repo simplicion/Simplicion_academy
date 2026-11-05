@@ -1,0 +1,22 @@
+{
+  "name": "@simplicion/academy-ecosystem",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Simplicion Academy Multi-Tenant SaaS Learning Platform",
+  "scripts": {
+    "dev:student": "pnpm --filter @simplicion/student-portal dev",
+    "dev:teacher": "pnpm --filter @simplicion/teacher-portal dev",
+    "dev:admin": "pnpm --filter @simplicion/admin-portal dev",
+    "dev:api": "pnpm --filter @simplicion/api dev",
+    "dev:docs": "pnpm --filter docs-platform start",
+    "dev": "pnpm --parallel --filter @simplicion/* dev",
+    "build:packages": "pnpm --filter \"@simplicion/*\" build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --build"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vitest": "^1.4.0"
+  }
+}

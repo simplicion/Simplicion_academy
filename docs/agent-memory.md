@@ -1,4 +1,4 @@
-# Simplicion Academy Agent Memory & Architectural Blueprint
+﻿# Simplicion Academy Agent Memory & Architectural Blueprint
 
 ## Context & Vision
 **Simplicion Private Limited** is building **Simplicion Academy**, a comprehensive "Career and Business Operating System". The platform uses **Docusaurus** as its primary content engine for internal operating procedures (SACOS), foundation standards (SAFS), and structured markdown-first educational content.
@@ -23,33 +23,33 @@ Each Standard and Volume directory adopts this clean modular sub-folder layout:
 
 ```text
 safs-00/ (or volume-XX/)
-│
-├── index.md                      (Standard Overview & Root Document)
-├── _category_.json               (Category config)
-│
-├── chapters/                     (All narrative chapter markdown files)
-│   ├── _category_.json
-│   ├── chapter-01-introduction.md
-│   ├── chapter-02-purpose.md
-│   ├── chapter-03-guiding-principles.md
-│   ├── chapter-04-taxonomy-framework.md
-│   ├── chapter-05-learning-hierarchy.md
-│   ├── chapter-06-content-definitions.md
-│   └── ...
-│
-├── diagrams/                     (Mermaid .mmd files)
-│   ├── learning-hierarchy.mmd
-│   └── architecture.mmd
-│
-├── assets/                       (Visual media)
-│   ├── images/
-│   ├── icons/
-│   └── illustrations/
-│
-└── references/                   (Supporting standards & bibliography)
-    ├── bibliography.md
-    ├── glossary-links.md
-    └── related-standards.md
+â”‚
+â”œâ”€â”€ index.md                      (Standard Overview & Root Document)
+â”œâ”€â”€ _category_.json               (Category config)
+â”‚
+â”œâ”€â”€ chapters/                     (All narrative chapter markdown files)
+â”‚   â”œâ”€â”€ _category_.json
+â”‚   â”œâ”€â”€ chapter-01-introduction.md
+â”‚   â”œâ”€â”€ chapter-02-purpose.md
+â”‚   â”œâ”€â”€ chapter-03-guiding-principles.md
+â”‚   â”œâ”€â”€ chapter-04-taxonomy-framework.md
+â”‚   â”œâ”€â”€ chapter-05-learning-hierarchy.md
+â”‚   â”œâ”€â”€ chapter-06-content-definitions.md
+â”‚   â””â”€â”€ ...
+â”‚
+â”œâ”€â”€ diagrams/                     (Mermaid .mmd files)
+â”‚   â”œâ”€â”€ learning-hierarchy.mmd
+â”‚   â””â”€â”€ architecture.mmd
+â”‚
+â”œâ”€â”€ assets/                       (Visual media)
+â”‚   â”œâ”€â”€ images/
+â”‚   â”œâ”€â”€ icons/
+â”‚   â””â”€â”€ illustrations/
+â”‚
+â””â”€â”€ references/                   (Supporting standards & bibliography)
+    â”œâ”€â”€ bibliography.md
+    â”œâ”€â”€ glossary-links.md
+    â””â”€â”€ related-standards.md
 ```
 
 ---
@@ -129,7 +129,7 @@ Format: `DOMAIN-TYPE-NAMESPACE-SEQUENCE` (e.g. `ACD-MOD-AIUIUX-000001`)
 - [x] Saved SAFS-05 `index.md` & Chapters 1 - 8 (Full SAFS-05 Content Standards complete!).
 - [x] Saved SAFS-06 `index.md` & Chapters 1 - 8 (Full SAFS-06 Governance & Lifecycle Standards complete!).
 - [x] **ENTIRE SIMPLICION ACADEMY FOUNDATION STANDARDS (SAFS-00 TO SAFS-06) 100% COMPLETE AND PUBLISHED!**
-- [x] **SAIS-04 — Learning Experience (LX) Standards index.md & Chapters 1 - 8 (100% COMPLETE AND PUBLISHED!)**
+- [x] **SAIS-04 â€” Learning Experience (LX) Standards index.md & Chapters 1 - 8 (100% COMPLETE AND PUBLISHED!)**
 
 
 
@@ -138,4 +138,21 @@ Format: `DOMAIN-TYPE-NAMESPACE-SEQUENCE` (e.g. `ACD-MOD-AIUIUX-000001`)
 
 
 
+
+
+- [x] **Domain-Driven Design (DDD) & Multi-Tenant Master Implementation Plan Published!**
+
+---
+
+## 8. Architectural Pattern: Domain-Driven Design (DDD)
+
+- **Thin Delivery / API Layer (apps/api):** Responsible solely for HTTP routing, serialization, host-based tenant resolution middleware, JWT guards, and OpenAPI generation. Controllers contain NO business logic.
+- **Isolated Domain Packages (packages/domain-*):** All business logic, aggregates, domain rules, and use-case handlers reside in pure domain packages:
+  - @simplicion/domain-tenant (Tenant, Settings, Plans, Subdomains)
+  - @simplicion/domain-catalog (Offerings, Batches, Units, Content, Pricing)
+  - @simplicion/domain-assessment (CBT Engine, Question Banks, Scorecards)
+  - @simplicion/domain-commerce (Orders, Razorpay Route Splits, Entitlements, Coupons)
+  - @simplicion/domain-learning (Enrollments, Progress, Dynamic Watermarks)
+  - @simplicion/domain-identity (Users, Phone OTP, Roles, Memberships)
+- **Shared Infrastructure (packages/db, @simplicion/ui):** Scoped Prisma repositories and tokenized SAFS-04 design system.
 

@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-primary: #2563eb;
+  --brand-primary-hover: #1d4ed8;
+  --brand-accent: #3b82f6;
+  --brand-radius: 8px;
+  --brand-font: 'Inter', sans-serif;
+}
+
+body {
+  font-family: var(--brand-font);
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+

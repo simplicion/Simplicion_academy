@@ -1,0 +1,318 @@
+// Simplicion Academy Multi-Tenant Data Schema
+// Conforms to SAFS-02 Data Standards & PRD Section 10
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ----------------------------------------------------
+// Platform Level (Cross-Tenant Governance)
+// ----------------------------------------------------
+
+model Plan {
+  id              String         @id @default(uuid())
+  name            String         // "Free/Trial", "Pro", "Business"
+  slug            String         @unique
+  maxStudents     Int            @default(50)
+  storageGb       Int            @default(5)
+  staffSeats      Int            @default(1)
+  customDomain    Boolean        @default(false)
+  transactionFee  Float          @default(10.0) // percentage
+  modulesAllowed  String[]       @default(["doubtSupport", "whatsappCommunity"])
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  tenants         Tenant[]
+}
+
+model Tenant {
+  id              String         @id @default(uuid())
+  slug            String         @unique
+  name            String
+  status          String         @default("draft") // "draft" | "active" | "suspended"
+  planId          String
+  plan            Plan           @relation(fields: [planId], references: [id])
+  ownerUserId     String
+  customDomain    String?        @unique
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  settings        TenantSettings?
+  memberships     TenantMembership[]
+  categories      Category[]
+  offerings       Offering[]
+  orders          Order[]
+  otpRequests     OtpRequest[]
+
+  @@index([slug])
+  @@index([customDomain])
+}
+
+model TenantSettings {
+  id              String         @id @default(uuid())
+  tenantId        String         @unique
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branding        Json           // { logoUrl, faviconUrl, tagline, primaryColor, accentColor, borderRadius, fontFamily, headerLayout }
+  labels          Json           // { studyEntry, unitsHeader, offeringName }
+  sectionsOrder   String[]       @default(["hero", "upcoming-slider", "categories", "why-us", "testimonials", "faq"])
+  enabledModules  Json           // { doubtSupport, mentorship, whatsappCommunity, advisoryTools }
+  contact         Json           // { supportPhone, whatsappNumber, whatsappTemplate }
+  seo             Json           // { titleTemplate, metaDescription, keywords, ogImageUrl }
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+// ----------------------------------------------------
+// User & Identity
+// ----------------------------------------------------
+
+model User {
+  id              String         @id @default(uuid())
+  phone           String         @unique
+  email           String?        @unique
+  name            String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  memberships     TenantMembership[]
+  enrollments     Enrollment[]
+  orders          Order[]
+  attempts        Attempt[]
+}
+
+model TenantMembership {
+  id              String         @id @default(uuid())
+  tenantId        String
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role            String         @default("student") // "student" | "teacher" | "staff" | "admin"
+  createdAt       DateTime       @default(now())
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+}
+
+model OtpRequest {
+  id              String         @id @default(uuid())
+  tenantId        String
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  phone           String
+  codeHash        String
+  expiresAt       DateTime
+  attempts        Int            @default(0)
+  isVerified      Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+
+  @@index([tenantId, phone])
+}
+
+// ----------------------------------------------------
+// Educational Catalog & Content (Tenant-Scoped)
+// ----------------------------------------------------
+
+model Category {
+  id              String         @id @default(uuid())
+  tenantId        String
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name            String
+  slug            String
+  icon            String?
+  order           Int            @default(0)
+  isActive        Boolean        @default(true)
+  description     String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  offerings       Offering[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+}
+
+model Offering {
+  id              String         @id @default(uuid())
+  tenantId        String
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  categoryId      String
+  category        Category       @relation(fields: [categoryId], references: [id])
+  type            String         @default("batch") // "batch" | "course" | "test_series" | "free_resource" | "bundle"
+  title           String
+  slug            String
+  description     String
+  startDate       DateTime?
+  endDate         DateTime?
+  language        String         @default("bilingual")
+  bannerUrl       String?
+  status          String         @default("draft") // "draft" | "upcoming" | "live" | "archived"
+  visibility      String         @default("public") // "public" | "unlisted" | "private"
+  mrp             Float          @default(0.0)
+  salePrice       Float          @default(0.0)
+  capacity        Int?
+  freePreviewCaps Json           @default("{\"demoClasses\":1,\"sampleTests\":1,\"samplePapers\":1}")
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  features        OfferingFeature[]
+  units           OfferingUnit[]
+  enrollments     Enrollment[]
+  orders          Order[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@index([categoryId])
+}
+
+model OfferingFeature {
+  id              String         @id @default(uuid())
+  offeringId      String
+  offering        Offering       @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  icon            String
+  text            String
+  order           Int            @default(0)
+
+  @@index([offeringId])
+}
+
+model Unit {
+  id              String         @id @default(uuid())
+  tenantId        String
+  name            String
+  slug            String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  offeringUnits   OfferingUnit[]
+  contentItems    ContentItem[]
+
+  @@index([tenantId])
+}
+
+model OfferingUnit {
+  id              String         @id @default(uuid())
+  offeringId      String
+  offering        Offering       @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  unitId          String
+  unit            Unit           @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  order           Int            @default(0)
+
+  @@unique([offeringId, unitId])
+}
+
+model ContentItem {
+  id              String         @id @default(uuid())
+  tenantId        String
+  unitId          String
+  unit            Unit           @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  type            String         // "class_video" | "notes_pdf" | "mock_test" | "cbt_test" | "previous_paper" | "current_affairs"
+  title           String
+  assetUrl        String?
+  isFreePreview   Boolean        @default(false)
+  order           Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  tests           Test[]
+
+  @@index([tenantId])
+  @@index([unitId])
+}
+
+// ----------------------------------------------------
+// CBT Assessment Engine
+// ----------------------------------------------------
+
+model Test {
+  id              String         @id @default(uuid())
+  tenantId        String
+  contentItemId   String?
+  contentItem     ContentItem?   @relation(fields: [contentItemId], references: [id])
+  title           String
+  durationMinutes Int            @default(60)
+  totalMarks      Float          @default(100.0)
+  createdAt       DateTime       @default(now())
+
+  questions       Question[]
+  attempts        Attempt[]
+
+  @@index([tenantId])
+}
+
+model Question {
+  id              String         @id @default(uuid())
+  testId          String
+  test            Test           @relation(fields: [testId], references: [id], onDelete: Cascade)
+  type            String         @default("single_choice")
+  textEn          String
+  textHi          String?
+  options         Json           // [{ id, textEn, textHi }]
+  correctOptionIds String[]
+  marks           Float          @default(4.0)
+  negativeMarks   Float          @default(1.0)
+  explanationEn   String?
+  explanationHi   String?
+  order           Int            @default(0)
+
+  @@index([testId])
+}
+
+model Attempt {
+  id              String         @id @default(uuid())
+  tenantId        String
+  testId          String
+  test            Test           @relation(fields: [testId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status          String         @default("in_progress") // "in_progress" | "submitted" | "timed_out"
+  answers         Json           // { questionId: { selectedOptionIds, timeSpentSeconds } }
+  scorecard       Json?          // { attempted, correct, incorrect, totalMarksScored, percentageScore }
+  startedAt       DateTime       @default(now())
+  submittedAt     DateTime?
+
+  @@index([tenantId, userId])
+  @@index([testId])
+}
+
+// ----------------------------------------------------
+// Commerce & Enrollments
+// ----------------------------------------------------
+
+model Order {
+  id              String         @id @default(uuid())
+  tenantId        String
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User           @relation(fields: [userId], references: [id])
+  offeringId      String
+  offering        Offering       @relation(fields: [offeringId], references: [id])
+  grossAmount     Float
+  platformFee     Float
+  teacherPayout   Float
+  status          String         @default("pending") // "pending" | "paid" | "failed" | "refunded"
+  gatewayOrderId  String?
+  gatewayPaymentId String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([tenantId, userId])
+  @@index([gatewayOrderId])
+}
+
+model Enrollment {
+  id              String         @id @default(uuid())
+  tenantId        String
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offeringId      String
+  offering        Offering       @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  source          String         @default("paid") // "paid" | "entitlement" | "admin"
+  grantedAt       DateTime       @default(now())
+
+  @@unique([userId, offeringId])
+  @@index([tenantId, userId])
+}
+
