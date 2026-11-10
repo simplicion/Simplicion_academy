@@ -15,6 +15,58 @@ importers:
         specifier: ^1.4.0
         version: 1.6.1(@types/node@20.19.43)(lightningcss@1.33.0)(supports-color@8.1.1)(terser@5.51.2)
 
+  apps/admin-portal:
+    dependencies:
+      '@simplicion/commerce':
+        specifier: workspace:*
+        version: link:../../packages/domain/commerce
+      '@simplicion/identity':
+        specifier: workspace:*
+        version: link:../../packages/domain/identity
+      '@simplicion/tenant':
+        specifier: workspace:*
+        version: link:../../packages/domain/tenant
+      '@simplicion/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      clsx:
+        specifier: ^2.1.0
+        version: 2.1.1
+      lucide-react:
+        specifier: ^0.359.0
+        version: 0.359.0(react@18.3.1)
+      next:
+        specifier: ^14.2.0
+        version: 14.2.35(@babel/core@7.29.7(supports-color@8.1.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.43
+      '@types/react':
+        specifier: ^18.2.0
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.2.0
+        version: 18.3.7(@types/react@18.3.31)
+      autoprefixer:
+        specifier: ^10.4.18
+        version: 10.6.2(postcss@8.5.32)
+      postcss:
+        specifier: ^8.4.35
+        version: 8.5.32
+      tailwindcss:
+        specifier: ^3.4.1
+        version: 3.4.19(tsx@4.23.15)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
   apps/api:
     dependencies:
       '@simplicion/assessment':

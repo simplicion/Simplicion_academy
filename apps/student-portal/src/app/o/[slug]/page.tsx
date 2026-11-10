@@ -75,7 +75,7 @@ export default function OfferingPage({ params }: PageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
       />
       <OfferingDetail
-        offering={offering}
+        offering={json}
         tenantName={tenant.name}
         whatsappNumber={tenant.settings.contact.whatsappNumber}
       />

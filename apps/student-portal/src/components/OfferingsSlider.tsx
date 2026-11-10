@@ -29,7 +29,7 @@ export const OfferingsSlider: React.FC<OfferingsSliderProps> = ({ offerings }) =
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
           {offerings.map((offering) => {
-            const json = offering.toJSON();
+            const json = typeof offering?.toJSON === 'function' ? offering.toJSON() : offering;
             return (
               <Card
                 key={json.id}

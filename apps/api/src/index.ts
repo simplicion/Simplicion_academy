@@ -70,7 +70,11 @@ export function createApiApp() {
   return app;
 }
 
-if (require.main === module) {
+const isDirectExecution =
+  (typeof require !== 'undefined' && require.main === module) ||
+  (typeof process !== 'undefined' && process.argv[1] && (process.argv[1].replace(/\\/g, '/').endsWith('src/index.ts') || process.argv[1].replace(/\\/g, '/').endsWith('index.ts')));
+
+if (isDirectExecution) {
   const port = process.env.PORT || 4000;
   const app = createApiApp();
   app.listen(port, () => {

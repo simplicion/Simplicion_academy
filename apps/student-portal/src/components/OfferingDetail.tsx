@@ -19,7 +19,7 @@ import { OfferingAggregate } from '@simplicion/catalog';
 import { AuthModal } from './AuthModal';
 
 export interface OfferingDetailProps {
-  offering: OfferingAggregate;
+  offering: any;
   tenantName: string;
   whatsappNumber?: string;
 }
@@ -29,7 +29,7 @@ export const OfferingDetail: React.FC<OfferingDetailProps> = ({
   tenantName,
   whatsappNumber = '919876543210',
 }) => {
-  const json = offering.toJSON();
+  const json = typeof offering?.toJSON === 'function' ? offering.toJSON() : offering;
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
 
