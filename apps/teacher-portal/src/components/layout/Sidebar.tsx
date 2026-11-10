@@ -25,10 +25,10 @@ export interface NavItem {
 }
 
 export const navItems: NavItem[] = [
-  { label: 'Overview', href: '/', icon: LayoutDashboard },
+  { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Portal Builder', href: '/builder', icon: Palette, badge: 'Live UI' },
   { label: 'Batches & Courses', href: '/batches', icon: BookOpen },
-  { label: 'Payouts & Revenue', href: '/payouts', icon: Wallet, badge: '180 Pay' },
+  { label: 'Payouts & Revenue', href: '/payouts', icon: Wallet, badge: 'Direct' },
   { label: 'CBT Question Bank', href: '/cbt', icon: FileCheck2 },
   { label: 'Student Doubts', href: '/doubts', icon: MessageCircleQuestion, badge: '3 New' },
   { label: 'Student Roster', href: '/students', icon: Users },
@@ -101,7 +101,7 @@ export const Sidebar: React.FC = () => {
       {/* Bottom Actions: View Live Storefront & Teacher Profile */}
       <div className="p-3 border-t border-slate-800 space-y-2">
         <a
-          href="http://localhost:3001"
+          href="http://localhost:3001/humanities-cuet"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 transition"
