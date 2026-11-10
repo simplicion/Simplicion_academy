@@ -126,6 +126,61 @@ export class TenantAggregate {
     });
   }
 
+  /**
+   * Instantly provisions an active tenant with zero approval delay
+   */
+  public static createInstantSelfServe(
+    id: string,
+    slug: string,
+    name: string,
+    ownerUserId: string,
+    planId: string = 'plan_starter_free',
+    customSettings?: Partial<TenantSettings>
+  ): TenantAggregate {
+    TenantAggregate.validateSlug(slug);
+
+    const defaultSettings: TenantSettings = {
+      branding: {
+        tagline: 'Empowering students to achieve mastery',
+        primaryColor: '#2563eb',
+        accentColor: '#3b82f6',
+        borderRadius: 'md',
+        fontFamily: 'Inter',
+        headerLayout: 'login-right',
+      },
+      labels: {
+        studyEntry: 'Study',
+        unitsHeader: "Let's Study",
+        offeringName: 'Batch',
+      },
+      sectionsOrder: ['hero', 'upcoming-slider', 'categories', 'why-us', 'testimonials', 'faq'],
+      enabledModules: {
+        doubtSupport: true,
+        mentorship: false,
+        whatsappCommunity: true,
+        advisoryTools: false,
+      },
+      contact: {},
+      seo: {
+        titleTemplate: `${name} | Online Classes & Test Series`,
+        metaDescription: `Join ${name} for structured courses and interactive CBT assessments.`,
+        keywords: ['online learning', 'test series', name.toLowerCase()],
+      },
+    };
+
+    return new TenantAggregate({
+      id,
+      slug: slug.toLowerCase(),
+      name,
+      status: 'active', // Immediately active
+      planId,
+      ownerUserId,
+      settings: { ...defaultSettings, ...customSettings },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+
   public static validateSlug(slug: string): void {
     const normalized = slug.trim().toLowerCase();
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalized)) {

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button } from '@simplicion/ui';
 import { Play, Pause, RotateCcw, FastForward, Volume2, Maximize, Clock } from 'lucide-react';
+import clsx from 'clsx';
 
 export interface VideoChapter {
   timeSeconds: number;
@@ -15,6 +16,8 @@ export interface VideoPlayerProps {
   durationMinutes?: number;
   chapters?: VideoChapter[];
   onProgress?: (progressPercent: number) => void;
+  className?: string;
+  hideChaptersCard?: boolean;
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -25,6 +28,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     { timeSeconds: 900, title: 'Key Thinkers & Historical Milestones' },
     { timeSeconds: 1800, title: 'Critical Examination MCQs' },
   ],
+  className,
+  hideChaptersCard = false,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -56,7 +61,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const speeds = [0.75, 1, 1.25, 1.5, 2];
 
   return (
-    <div className="flex flex-col space-y-4 max-w-4xl mx-auto">
+    <div className={clsx('flex flex-col space-y-4 w-full', className)}>
       {/* Video Viewport / Simulated Canvas */}
       <div className="relative aspect-video bg-slate-950 rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between p-6 border border-slate-800 select-none">
         {/* Top Watermark in Video */}
@@ -131,24 +136,26 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       </div>
 
       {/* Chapter Navigation Markers */}
-      <Card padding="md" className="border border-slate-200 dark:border-slate-800">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center">
-          <Clock className="w-3.5 h-3.5 mr-1.5 text-[var(--brand-primary,#2563eb)]" />
-          <span>Lecture Chapters</span>
-        </h4>
-        <div className="space-y-1.5">
-          {chapters.map((ch, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentTime(ch.timeSeconds)}
-              className="w-full text-left p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center justify-between text-xs transition-colors"
-            >
-              <span className="font-medium text-slate-800 dark:text-slate-200">{ch.title}</span>
-              <span className="font-mono text-slate-400 text-[11px]">{formatTime(ch.timeSeconds)}</span>
-            </button>
-          ))}
-        </div>
-      </Card>
+      {!hideChaptersCard && chapters.length > 0 && (
+        <Card padding="md" className="border border-slate-200 dark:border-slate-800">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center">
+            <Clock className="w-3.5 h-3.5 mr-1.5 text-[var(--brand-primary,#2563eb)]" />
+            <span>Lecture Chapters</span>
+          </h4>
+          <div className="space-y-1.5">
+            {chapters.map((ch, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentTime(ch.timeSeconds)}
+                className="w-full text-left p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center justify-between text-xs transition-colors"
+              >
+                <span className="font-medium text-slate-800 dark:text-slate-200">{ch.title}</span>
+                <span className="font-mono text-slate-400 text-[11px]">{formatTime(ch.timeSeconds)}</span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

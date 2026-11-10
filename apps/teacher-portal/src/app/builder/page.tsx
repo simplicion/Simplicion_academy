@@ -60,7 +60,7 @@ export default function VisualPortalBuilderPage() {
       <div>
         <h2 className="text-xl font-black text-slate-900 tracking-tight">No-Code Visual Portal Builder</h2>
         <p className="text-xs text-slate-500 mt-1">
-          Customize colors, font choices, corner radii, and section visibility with live interactive preview.
+          Customize your brand name, hero tagline, website color theme, and font with live interactive preview.
         </p>
       </div>
 

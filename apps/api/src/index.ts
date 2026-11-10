@@ -7,6 +7,7 @@ import { AuthController } from './controllers/auth.controller';
 import { AssessmentController } from './controllers/assessment.controller';
 import { CommerceController } from './controllers/commerce.controller';
 import { RazorpayWebhookController } from './controllers/razorpay-webhook.controller';
+import { One80PayController } from './controllers/one80-pay.controller';
 import { UploadController } from './controllers/upload.controller';
 import { validateBody, validateRequestOtp, validateVerifyOtp, validateCreateOrder } from './validation';
 import { otpRequestLimiter } from './middleware/rate-limiter';
@@ -30,6 +31,10 @@ export function createApiApp() {
     });
   });
 
+  // Discovery & Instant Self-Serve Teacher Onboarding (Zero-Approval)
+  app.get('/tenants/search', TenantController.searchTenants);
+  app.post('/tenants/onboard-instant', TenantController.onboardInstant);
+
   // Public Tenant Endpoints
   app.get('/site-config', TenantController.getSiteConfig);
   app.get('/offerings', CatalogController.getOfferings);
@@ -51,12 +56,14 @@ export function createApiApp() {
   app.post('/tests/:id/start', AssessmentController.startTest);
   app.post('/attempts/:id/submit', AssessmentController.submitAttempt);
 
-  // Commerce & Webhook Endpoints
+  // Commerce & Webhook Endpoints (180 Pay & Razorpay Fallback)
   app.post(
     '/checkout/order',
     validateBody(validateCreateOrder),
     CommerceController.createOrder
   );
+  app.post('/pay/180/create-order', One80PayController.createOrder);
+  app.post('/webhooks/180-pay', One80PayController.handleWebhook);
   app.post('/webhooks/payment', CommerceController.handlePaymentWebhook);
   app.post('/webhooks/razorpay', RazorpayWebhookController.handleWebhook);
 
@@ -72,7 +79,10 @@ export function createApiApp() {
 
 const isDirectExecution =
   (typeof require !== 'undefined' && require.main === module) ||
-  (typeof process !== 'undefined' && process.argv[1] && (process.argv[1].replace(/\\/g, '/').endsWith('src/index.ts') || process.argv[1].replace(/\\/g, '/').endsWith('index.ts')));
+  (typeof process !== 'undefined' &&
+    process.argv[1] &&
+    (process.argv[1].replace(/\\/g, '/').endsWith('src/index.ts') ||
+      process.argv[1].replace(/\\/g, '/').endsWith('index.ts')));
 
 if (isDirectExecution) {
   const port = process.env.PORT || 4000;

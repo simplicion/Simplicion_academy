@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { OfferingAggregate } from '@simplicion/catalog';
 import { AuthModal } from './AuthModal';
+import { One80PayModal } from './checkout/One80PayModal';
 
 export interface OfferingDetailProps {
   offering: any;
@@ -31,6 +32,7 @@ export const OfferingDetail: React.FC<OfferingDetailProps> = ({
 }) => {
   const json = typeof offering?.toJSON === 'function' ? offering.toJSON() : offering;
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isPayOpen, setIsPayOpen] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
 
   const handleEnrollClick = () => {
@@ -38,8 +40,7 @@ export const OfferingDetail: React.FC<OfferingDetailProps> = ({
     if (!student) {
       setIsAuthOpen(true);
     } else {
-      // Direct checkout simulation
-      setIsEnrolled(true);
+      setIsPayOpen(true);
     }
   };
 
@@ -222,6 +223,19 @@ export const OfferingDetail: React.FC<OfferingDetailProps> = ({
         onClose={() => setIsAuthOpen(false)}
         onSuccess={() => {
           setIsAuthOpen(false);
+          setIsPayOpen(true);
+        }}
+      />
+
+      <One80PayModal
+        isOpen={isPayOpen}
+        onClose={() => setIsPayOpen(false)}
+        orderId={`180_ord_${json.id}_${Date.now()}`}
+        amount={json.pricing?.salePrice || 4999}
+        offeringTitle={json.title}
+        tenantName={tenantName}
+        onSuccess={() => {
+          setIsPayOpen(false);
           setIsEnrolled(true);
         }}
       />

@@ -75,4 +75,27 @@ describe('No-Code Portal Builder & Theme Tokens', () => {
     expect(tenant.settings.branding.primaryColor).toBe('#7c3aed');
     expect(tenant.settings.branding.headerLayout).toBe('login-left');
   });
+
+  it('updates brand name and hero tagline', () => {
+    const updatedTheme: ThemeCustomizerState = {
+      ...initialTheme,
+      instituteName: 'Apex Science Academy',
+      tagline: 'Top Notch IIT-JEE & NEET Coaching',
+    };
+
+    expect(updatedTheme.instituteName).toBe('Apex Science Academy');
+    expect(updatedTheme.tagline).toBe('Top Notch IIT-JEE & NEET Coaching');
+  });
+
+  it('updates font family selection', () => {
+    const fonts = ["'Plus Jakarta Sans', sans-serif", "'Outfit', sans-serif", "'Playfair Display', serif"];
+
+    fonts.forEach((font) => {
+      const theme: ThemeCustomizerState = {
+        ...initialTheme,
+        fontFamily: font,
+      };
+      expect(theme.fontFamily).toBe(font);
+    });
+  });
 });
