@@ -63,6 +63,9 @@ export function createApiApp() {
     CommerceController.createOrder
   );
   app.post('/pay/180/create-order', One80PayController.createOrder);
+  app.post('/pay/180/subscribe-teacher', One80PayController.subscribeTeacher);
+  app.post('/pay/180/payouts/request', One80PayController.requestPayout);
+  app.get('/pay/180/payouts', One80PayController.getPayouts);
   app.post('/webhooks/180-pay', One80PayController.handleWebhook);
   app.post('/webhooks/payment', CommerceController.handlePaymentWebhook);
   app.post('/webhooks/razorpay', RazorpayWebhookController.handleWebhook);

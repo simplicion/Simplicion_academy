@@ -143,12 +143,10 @@ export const MainPlatformLanding: React.FC = () => {
             >
               Teacher Studio
             </a>
-            <a
-              href="http://localhost:3003"
-              className="text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 transition hidden md:block"
-            >
-              Super Admin
-            </a>
+            <span className="text-xs sm:text-sm font-semibold text-emerald-600 hidden md:flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>180 Pay Connected</span>
+            </span>
             <button
               type="button"
               onClick={() => setIsOnboardingOpen(true)}
@@ -346,7 +344,7 @@ export const MainPlatformLanding: React.FC = () => {
               <ul className="space-y-1.5 font-mono">
                 <li>• Student Discovery: :3001</li>
                 <li>• Teacher Studio: :3002</li>
-                <li>• Super Admin Governance: :3003</li>
+                <li>• 180 Identity &amp; Pay Cloud</li>
                 <li>• Delivery API: :4000</li>
               </ul>
             </div>
@@ -365,3 +363,4 @@ export const MainPlatformLanding: React.FC = () => {
     </div>
   );
 };
+

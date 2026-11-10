@@ -67,7 +67,7 @@ export const ImpersonationBanner: React.FC<ImpersonationBannerProps> = ({
       if (onExit) {
         onExit();
       } else {
-        window.location.href = 'http://localhost:3003/audit';
+        window.location.href = '/';
       }
     }
   };

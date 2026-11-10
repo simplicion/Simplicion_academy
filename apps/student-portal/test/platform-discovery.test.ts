@@ -56,3 +56,4 @@ describe('Main Platform Discovery Hub & Live Academy Search Engine', () => {
     expect(generatePortalUrl('apex-physics')).toBe('http://localhost:3001/?tenant=apex-physics');
   });
 });
+

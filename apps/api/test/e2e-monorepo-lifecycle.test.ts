@@ -6,7 +6,11 @@ import { UserAggregate } from '@simplicion/identity';
 import { Question } from '@simplicion/assessment';
 import { computeCbtScore } from '../../student-portal/test/cbt-engine.test';
 import { generateWatermarkString } from '../../student-portal/test/watermarking.test';
-import { computeSplitSettlement } from '../../admin-portal/test/split-settlement.test';
+export function computeSplitSettlement(grossAmount: number, feePercent = 5.0) {
+  const platformFee = Math.round(grossAmount * (feePercent / 100));
+  const teacherPayout = grossAmount - platformFee;
+  return { grossAmount, platformFee, teacherPayout };
+}
 
 describe('Cross-Application End-to-End Multi-Tenant Lifecycle', () => {
   it('executes complete journey: Tenant Onboarding -> Storefront Design -> Checkout -> Split Webhook -> Study Hub & CBT Assessment -> Payout Ledger', () => {

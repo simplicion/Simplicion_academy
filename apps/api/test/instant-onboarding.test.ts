@@ -93,3 +93,4 @@ describe('Instant Self-Serve Teacher Onboarding (Zero-Approval Gate)', () => {
     expect(jsonBody.error).toContain('required');
   });
 });
+

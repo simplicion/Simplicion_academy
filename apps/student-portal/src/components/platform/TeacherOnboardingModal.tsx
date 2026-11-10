@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Sparkles, CheckCircle2, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
+import { Sparkles, CheckCircle2, ArrowRight, ShieldCheck, Zap, CreditCard, ArrowLeft, Lock } from 'lucide-react';
 
 export interface TeacherOnboardingModalProps {
   isOpen: boolean;
@@ -14,6 +14,7 @@ export const TeacherOnboardingModal: React.FC<TeacherOnboardingModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const [step, setStep] = useState<'details' | 'subscription'>('details');
   const [teacherName, setTeacherName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -38,7 +39,7 @@ export const TeacherOnboardingModal: React.FC<TeacherOnboardingModalProps> = ({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleProceedToPayment = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -47,8 +48,15 @@ export const TeacherOnboardingModal: React.FC<TeacherOnboardingModalProps> = ({
       return;
     }
 
+    setStep('subscription');
+  };
+
+  const handlePayAndActivate = async () => {
     setIsLoading(true);
+    setError(null);
+
     try {
+      // 1. Provision the active tenant
       const response = await fetch('http://localhost:4000/tenants/onboard-instant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -69,16 +77,27 @@ export const TeacherOnboardingModal: React.FC<TeacherOnboardingModalProps> = ({
         throw new Error(data.error || 'Failed to provision teacher academy.');
       }
 
+      // 2. Activate ₹200/month Platform Subscription via 180 Pay
+      await fetch('http://localhost:4000/pay/180/subscribe-teacher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: data.tenant.id,
+          teacherName,
+          email,
+          paymentMethod: '180_pay_upi',
+        }),
+      });
+
       setSuccessData(data);
       if (onSuccess) onSuccess(data);
 
-      // Save active session
       if (typeof window !== 'undefined') {
         localStorage.setItem('simplicion_teacher_token', data.token);
         localStorage.setItem('simplicion_active_tenant', JSON.stringify(data.tenant));
       }
     } catch (err: any) {
-      setError(err.message || 'Error creating account. Please try again.');
+      setError(err.message || 'Error processing payment. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -113,14 +132,16 @@ export const TeacherOnboardingModal: React.FC<TeacherOnboardingModalProps> = ({
           <div className="flex items-center gap-2 mb-1.5">
             <span className="inline-flex items-center gap-1 bg-amber-400 text-slate-950 font-bold px-2.5 py-0.5 rounded-full text-[11px] uppercase tracking-wide">
               <Zap className="w-3 h-3 fill-slate-950" />
-              Instant Zero-Approval Access
+              180 Pay Powered • Zero Approval Wait
             </span>
           </div>
           <h2 className="text-2xl font-black tracking-tight text-white">
-            Launch Your Online Academy in 60s
+            {step === 'details' ? 'Launch Your Online Academy in 60s' : 'Activate Platform Subscription'}
           </h2>
           <p className="text-blue-100 text-xs sm:text-sm mt-1">
-            Create your account to immediately unlock your Teacher Studio, customize your portal, and launch live batches.
+            {step === 'details'
+              ? 'Enter your academy details. Zero approval wait — start teaching instantly.'
+              : 'Flat ₹200/month for complete Teacher Studio, white-label portal & automated 180 Pay payouts.'}
           </p>
         </div>
 
@@ -132,11 +153,11 @@ export const TeacherOnboardingModal: React.FC<TeacherOnboardingModalProps> = ({
                 <CheckCircle2 className="w-10 h-10" />
               </div>
               <h3 className="text-2xl font-extrabold text-slate-900">
-                Academy Live & Ready!
+                Academy Live & Subscription Active!
               </h3>
               <p className="text-slate-600 text-sm max-w-md mx-auto">
-                Congratulations <strong className="text-slate-900">{teacherName}</strong>! Your academy{' '}
-                <strong className="text-blue-600">{academyName}</strong> is auto-provisioned in active status with authenticated 180 Identity.
+                Welcome <strong className="text-slate-900">{teacherName}</strong>! Your academy{' '}
+                <strong className="text-blue-600">{academyName}</strong> is active. Subscription of ₹200/mo is verified via 180 Pay.
               </p>
 
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left text-xs space-y-2">
@@ -152,12 +173,12 @@ export const TeacherOnboardingModal: React.FC<TeacherOnboardingModalProps> = ({
                   </a>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Authentication:</span>
-                  <span className="font-semibold text-emerald-700">180 Identity Verified</span>
+                  <span className="text-slate-500">Subscription Status:</span>
+                  <span className="font-semibold text-emerald-700">🟢 Active (₹200/mo via 180 Pay)</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Approval Status:</span>
-                  <span className="font-semibold text-emerald-700">🟢 Active & Approved</span>
+                  <span className="text-slate-500">Automated Payouts:</span>
+                  <span className="font-semibold text-slate-800">180 Pay Enabled (95% Split)</span>
                 </div>
               </div>
 
@@ -171,8 +192,8 @@ export const TeacherOnboardingModal: React.FC<TeacherOnboardingModalProps> = ({
                 </a>
               </div>
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+          ) : step === 'details' ? (
+            <form onSubmit={handleProceedToPayment} className="space-y-4">
               {error && (
                 <div className="bg-red-50 text-red-700 border border-red-200 p-3 rounded-xl text-xs">
                   {error}
@@ -255,7 +276,7 @@ export const TeacherOnboardingModal: React.FC<TeacherOnboardingModalProps> = ({
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Your students will access courses at: <code className="text-blue-600 font-semibold">{slug || 'myacademy'}.simplicion.com</code>
+                  Students will access your portal at: <code className="text-blue-600 font-semibold">{slug || 'myacademy'}.simplicion.com</code>
                 </p>
               </div>
 
@@ -294,35 +315,98 @@ export const TeacherOnboardingModal: React.FC<TeacherOnboardingModalProps> = ({
                 </div>
               </div>
 
-              {/* Trust Indicators */}
-              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-[11px] text-slate-600 space-y-1">
-                <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                  <span>No verification queue • Zero approval wait time</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-slate-600">
-                  <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-blue-600" />
-                  <span>Authenticated via 180 Identity • Direct 180 Pay settlement</span>
-                </div>
-              </div>
-
               {/* Action Button */}
               <button
                 type="submit"
-                disabled={isLoading}
-                data-testid="create-teacher-account-btn"
-                className="w-full py-3.5 px-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.99] transition shadow-md disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                data-testid="continue-to-payment-btn"
+                className="w-full py-3.5 px-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.99] transition shadow-md flex items-center justify-center gap-2 text-sm"
               >
-                {isLoading ? (
-                  'Provisioning Your Academy...'
-                ) : (
-                  <>
-                    <span>Create Academy & Enter Studio</span>
-                    <Sparkles className="w-4 h-4" />
-                  </>
-                )}
+                <span>Continue to ₹200/mo Subscription</span>
+                <ArrowRight className="w-4 h-4" />
               </button>
             </form>
+          ) : (
+            /* Step 2: 180 Pay Platform Subscription (₹200/month) */
+            <div className="space-y-4">
+              {error && (
+                <div className="bg-red-50 text-red-700 border border-red-200 p-3 rounded-xl text-xs">
+                  {error}
+                </div>
+              )}
+
+              {/* Subscription Breakdown */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                      Pro Educator Plan
+                    </span>
+                    <h4 className="text-base font-bold text-slate-900 mt-1">{academyName}</h4>
+                    <p className="text-xs text-slate-500">Instructor: {teacherName}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-3xl font-black text-slate-900">₹200</span>
+                    <span className="text-xs text-slate-500 block">/ month</span>
+                  </div>
+                </div>
+
+                <div className="text-xs text-slate-600 space-y-1.5 pt-1">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Instant Studio access & live student portal</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Unlimited batches, video classes & CBT question banks</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Automated 95% revenue payouts to Bank/UPI via 180 Pay</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 180 Pay Trust Badge */}
+              <div className="bg-blue-50/60 border border-blue-200/80 rounded-xl p-3 text-xs text-blue-900 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>Secured by 180 Pay • Client: 180_client_3f69...</span>
+                </div>
+                <span className="font-bold text-[11px] bg-blue-200/80 text-blue-900 px-2 py-0.5 rounded">
+                  Auto-Renewable
+                </span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handlePayAndActivate}
+                  disabled={isLoading}
+                  data-testid="pay-subscription-btn"
+                  className="w-full py-3.5 px-4 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] transition shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                >
+                  {isLoading ? (
+                    'Processing via 180 Pay...'
+                  ) : (
+                    <>
+                      <span>Pay ₹200 via 180 Pay &amp; Launch Studio</span>
+                      <Zap className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStep('details')}
+                  disabled={isLoading}
+                  className="w-full py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition flex items-center justify-center gap-1"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Edit Academy Details</span>
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>

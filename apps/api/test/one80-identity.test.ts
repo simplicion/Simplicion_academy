@@ -52,3 +52,4 @@ describe('180 Identity Authentication Infrastructure', () => {
     expect(isForged).toBe(false);
   });
 });
+

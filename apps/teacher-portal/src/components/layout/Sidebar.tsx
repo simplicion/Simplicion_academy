@@ -13,6 +13,7 @@ import {
   ExternalLink,
   GraduationCap,
   Sparkles,
+  Wallet,
 } from 'lucide-react';
 import { Badge } from '@simplicion/ui';
 
@@ -27,6 +28,7 @@ export const navItems: NavItem[] = [
   { label: 'Overview', href: '/', icon: LayoutDashboard },
   { label: 'Portal Builder', href: '/builder', icon: Palette, badge: 'Live UI' },
   { label: 'Batches & Courses', href: '/batches', icon: BookOpen },
+  { label: 'Payouts & Revenue', href: '/payouts', icon: Wallet, badge: '180 Pay' },
   { label: 'CBT Question Bank', href: '/cbt', icon: FileCheck2 },
   { label: 'Student Doubts', href: '/doubts', icon: MessageCircleQuestion, badge: '3 New' },
   { label: 'Student Roster', href: '/students', icon: Users },

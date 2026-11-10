@@ -6,7 +6,6 @@
   "scripts": {
     "dev:student": "pnpm --filter @simplicion/student-portal dev",
     "dev:teacher": "pnpm --filter @simplicion/teacher-portal dev",
-    "dev:admin": "pnpm --filter @simplicion/admin-portal dev",
     "dev:api": "pnpm --filter @simplicion/api dev",
     "dev:docs": "pnpm --filter docs-platform start",
     "dev": "pnpm --parallel --filter @simplicion/* dev",
