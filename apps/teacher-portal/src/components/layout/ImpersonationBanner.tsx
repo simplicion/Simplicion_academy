@@ -67,7 +67,7 @@ export const ImpersonationBanner: React.FC<ImpersonationBannerProps> = ({
       if (onExit) {
         onExit();
       } else {
-        window.location.href = '/';
+        window.location.href = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/`;
       }
     }
   };

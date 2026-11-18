@@ -94,51 +94,8 @@ jobs:
           fi
           supabase functions deploy api --project-ref fzogbyhgufiaywcctjkp --no-verify-jwt
 
-  deploy-teacher-portal:
-    name: Deploy Teacher Portal (learnings.simplicion.com) to Cloudflare Pages
-    needs: verify
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    env:
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
-      NEXT_PUBLIC_API_URL: ${{ secrets.PRODUCTION_API_URL || 'https://fzogbyhgufiaywcctjkp.supabase.co/functions/v1/api' }}
-      NEXT_PUBLIC_STUDENT_PORTAL_URL: https://student.simplicion.com
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Build Teacher Portal for Cloudflare Pages
-        working-directory: apps/teacher-portal
-        run: npx --yes @cloudflare/next-on-pages@1
-
-      - name: Deploy to Cloudflare Pages (learnings-teacher-portal)
-        env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          npx --yes wrangler@3 pages deploy apps/teacher-portal/.vercel/output/static \
-            --project-name=learnings-teacher-portal \
-            --branch=main \
-            --commit-dirty=true
-
   deploy-student-portal:
-    name: Deploy Student Portal (student.simplicion.com) to Cloudflare Pages
+    name: Deploy Student Portal (learnings.simplicion.com) to Cloudflare Pages
     needs: verify
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -146,6 +103,7 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
       NEXT_PUBLIC_API_URL: ${{ secrets.PRODUCTION_API_URL || 'https://fzogbyhgufiaywcctjkp.supabase.co/functions/v1/api' }}
+      NEXT_PUBLIC_TEACHER_PORTAL_URL: /t
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -174,7 +132,72 @@ jobs:
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          npx --yes wrangler@3 pages deploy apps/student-portal/.vercel/output/static \
+          npx --yes wrangler@4 pages deploy apps/student-portal/.vercel/output/static \
             --project-name=learnings-student-portal \
             --branch=main \
             --commit-dirty=true
+
+  deploy-teacher-portal:
+    name: Deploy Teacher Portal (learnings.simplicion.com/t) to Cloudflare Pages
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_BASE_PATH: /t
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_API_URL: ${{ secrets.PRODUCTION_API_URL || 'https://fzogbyhgufiaywcctjkp.supabase.co/functions/v1/api' }}
+      NEXT_PUBLIC_STUDENT_PORTAL_URL: https://learnings.simplicion.com
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build Teacher Portal for Cloudflare Pages
+        working-directory: apps/teacher-portal
+        run: npx --yes @cloudflare/next-on-pages@1
+
+      - name: Deploy to Cloudflare Pages (learnings-teacher-portal)
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4 pages deploy apps/teacher-portal/.vercel/output/static \
+            --project-name=learnings-teacher-portal \
+            --branch=main \
+            --commit-dirty=true
+
+  deploy-edge-router:
+    name: Deploy Cloudflare Worker Router (learnings.simplicion.com/t*)
+    needs: [deploy-student-portal, deploy-teacher-portal]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy Worker Script & Attach /t* Routes
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4 deploy cloudflare/learnings-router/worker.js \
+            --name learnings-teacher-router \
+            --compatibility-date 2024-09-23 \
+            --route "learnings.simplicion.com/t" \
+            --route "learnings.simplicion.com/t/*"

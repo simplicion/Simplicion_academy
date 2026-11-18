@@ -139,7 +139,7 @@ export const TeacherLandingPage: React.FC = () => {
           }
 
           if (intent === 'login' && localStorage.getItem('simplicion_active_tenant')) {
-            window.location.href = '/dashboard';
+            window.location.href = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/dashboard`;
             return;
           }
 

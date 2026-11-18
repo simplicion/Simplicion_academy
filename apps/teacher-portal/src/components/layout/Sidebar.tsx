@@ -172,7 +172,7 @@ export const Sidebar: React.FC = () => {
     } catch {
       // ignore
     }
-    window.location.href = '/';
+    window.location.href = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/`;
   };
 
   const initials = educatorName

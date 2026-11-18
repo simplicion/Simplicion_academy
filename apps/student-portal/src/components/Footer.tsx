@@ -288,13 +288,23 @@ export const Footer: React.FC<FooterProps> = ({ tenantName }) => {
           </div>
         </div>
 
-        {/* Bottom Copyright Row — 100% Academy Branded */}
-        <div className="pt-6 border-t border-[#f1f5f9] flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-[#64748b]">
+        {/* Bottom Copyright Row + Sign up as a Teacher link */}
+        <div className="pt-6 border-t border-[#f1f5f9] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#64748b]">
           <p>
             © {new Date().getFullYear()} {profile.academyName}. All rights reserved.
             {profile.gstin ? ` • GSTIN: ${profile.gstin}` : ''}
           </p>
-          {profile.policyNote ? <p>{profile.policyNote}</p> : null}
+          <div className="flex flex-wrap items-center gap-4">
+            {profile.policyNote ? <p>{profile.policyNote}</p> : null}
+            <a
+              href={process.env.NEXT_PUBLIC_TEACHER_PORTAL_URL || '/t'}
+              data-testid="footer-teacher-signup-link"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#2563eb] bg-[#eff6ff] hover:bg-[#dbeafe] border border-[#dbeafe] transition-colors"
+            >
+              <span>Sign up as a Teacher</span>
+              <span aria-hidden="true">→</span>
+            </a>
+          </div>
         </div>
       </div>
     </footer>
