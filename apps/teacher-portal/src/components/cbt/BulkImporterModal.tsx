@@ -180,12 +180,12 @@ export const BulkImporterModal: React.FC<BulkImporterModalProps> = ({
 
   const sampleJson = `[
   {
-    "prompt": "Which ruler inscribed the Junagadh rock inscription?",
+    "prompt": "Enter your question prompt here",
     "options": [
-      { "id": "opt_1", "text": "Rudradaman I" },
-      { "id": "opt_2", "text": "Ashoka" },
-      { "id": "opt_3", "text": "Chandragupta Maurya" },
-      { "id": "opt_4", "text": "Samudragupta" }
+      { "id": "opt_1", "text": "Option A" },
+      { "id": "opt_2", "text": "Option B" },
+      { "id": "opt_3", "text": "Option C" },
+      { "id": "opt_4", "text": "Option D" }
     ],
     "correctOptionIds": ["opt_1"],
     "marks": 4,

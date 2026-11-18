@@ -27,6 +27,7 @@ export interface TenantSettings {
     advisoryTools: boolean;
   };
   contact: {
+    supportEmail?: string;
     supportPhone?: string;
     whatsappNumber?: string;
     whatsappTemplate?: string;

@@ -3,8 +3,12 @@ import './globals.css';
 import { StudioShell } from '../components/layout/StudioShell';
 
 export const metadata = {
-  title: 'Simplicion Academy | The Operating System for India\'s Educators',
-  description: 'Launch your branded online academy in 60 seconds with instant student portal, live batches, CBT question bank, and instant payouts.',
+  title: 'Learnings Simplicion',
+  description:
+    'Launch your independent online academy on learnings.simplicion.com with instant student portals, live batches, CBT mock tests, and 180 Pay payouts.',
+  icons: {
+    icon: '/logo-black.svg',
+  },
 };
 
 export default function RootLayout({
@@ -14,7 +18,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-slate-50 flex flex-col text-slate-900 antialiased">
+      <head>
+        <script src="https://profile.180core.cloud/sdk/v1/180-core-sdk.js" async />
+      </head>
+      <body className="min-h-screen bg-white flex flex-col text-[#0f172a] antialiased">
         <StudioShell>{children}</StudioShell>
       </body>
     </html>

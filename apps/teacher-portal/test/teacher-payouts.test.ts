@@ -16,17 +16,17 @@ describe('Teacher 180 Pay Disbursals & Earnings Studio', () => {
     expect(platformFee + teacherPayout).toBe(batchPrice);
   });
 
-  it('enforces flat ₹200/month teacher subscription fee for instant studio access', () => {
+  it('enforces flat ₹250/month teacher subscription fee to publish courses live', () => {
     const subscription = {
       tenantId: 'humanities-cuet',
-      amount: 200,
+      amount: 250,
       currency: 'INR',
       interval: 'monthly',
       status: 'active',
       provider: '180_pay',
     };
 
-    expect(subscription.amount).toBe(200);
+    expect(subscription.amount).toBe(250);
     expect(subscription.status).toBe('active');
     expect(subscription.interval).toBe('monthly');
   });
@@ -81,3 +81,4 @@ describe('Teacher 180 Pay Disbursals & Earnings Studio', () => {
     expect(bankPayload.destination.ifsc).toMatch(/^[A-Z]{4}0[A-Z0-9]{6}$/);
   });
 });
+

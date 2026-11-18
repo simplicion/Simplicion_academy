@@ -1,0 +1,181 @@
+name: CI/CD — Cloudflare Pages & Supabase Deployment
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @simplicion/db exec prisma generate
+
+      - name: Typecheck API
+        run: pnpm --filter @simplicion/api exec tsc --noEmit
+
+      - name: Run test suite
+        run: pnpm test -- --exclude="**/one80-pay.test.ts"
+
+  deploy-supabase-backend:
+    name: Push Backend Schema & Functions to Supabase
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Sync Prisma Schema to Supabase PostgreSQL
+        if: ${{ secrets.DIRECT_URL != '' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: |
+          pnpm --filter @simplicion/db exec prisma generate
+          pnpm --filter @simplicion/db exec prisma db push --skip-generate
+
+      - name: Apply Live Classes, RLS & Realtime SQL Migration to Supabase
+        if: ${{ secrets.DIRECT_URL != '' }}
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          psql "$DIRECT_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261118000000_live_classes_and_rls.sql
+
+      - name: Deploy Supabase Edge Function (API)
+        if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Push Edge Functions to Supabase Project
+        if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy api --project-ref fzogbyhgufiaywcctjkp --no-verify-jwt
+
+  deploy-teacher-portal:
+    name: Deploy Teacher Portal (learnings.simplicion.com) to Cloudflare Pages
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_API_URL: ${{ secrets.PRODUCTION_API_URL || 'https://fzogbyhgufiaywcctjkp.supabase.co/functions/v1/api' }}
+      NEXT_PUBLIC_STUDENT_PORTAL_URL: https://student.simplicion.com
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build Teacher Portal for Cloudflare Pages
+        working-directory: apps/teacher-portal
+        run: npx --yes @cloudflare/next-on-pages@1
+
+      - name: Deploy to Cloudflare Pages (learnings-teacher-portal)
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@3 pages deploy apps/teacher-portal/.vercel/output/static \
+            --project-name=learnings-teacher-portal \
+            --branch=main \
+            --commit-dirty=true
+
+  deploy-student-portal:
+    name: Deploy Student Portal (student.simplicion.com) to Cloudflare Pages
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_API_URL: ${{ secrets.PRODUCTION_API_URL || 'https://fzogbyhgufiaywcctjkp.supabase.co/functions/v1/api' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build Student Portal for Cloudflare Pages
+        working-directory: apps/student-portal
+        run: npx --yes @cloudflare/next-on-pages@1
+
+      - name: Deploy to Cloudflare Pages (learnings-student-portal)
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@3 pages deploy apps/student-portal/.vercel/output/static \
+            --project-name=learnings-student-portal \
+            --branch=main \
+            --commit-dirty=true

@@ -28,7 +28,7 @@ export interface OfferingDetailProps {
 export const OfferingDetail: React.FC<OfferingDetailProps> = ({
   offering,
   tenantName,
-  whatsappNumber = '919876543210',
+  whatsappNumber = '',
 }) => {
   const json = typeof offering?.toJSON === 'function' ? offering.toJSON() : offering;
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -76,7 +76,7 @@ export const OfferingDetail: React.FC<OfferingDetailProps> = ({
                   {json.type.toUpperCase()}
                 </span>
                 <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 py-1 px-3 rounded-md">
-                  Target: CUET UG 2027
+                  Structured Course
                 </span>
               </div>
 
@@ -175,7 +175,7 @@ export const OfferingDetail: React.FC<OfferingDetailProps> = ({
                       🎉 Enrollment Confirmed!
                     </p>
                   </div>
-                  <Link href="/study" className="block w-full">
+                  <Link href="/" className="block w-full">
                     <Button variant="primary" size="lg" className="w-full">
                       <span>Go to Study Hub</span>
                       <ArrowRight className="w-4 h-4 ml-2" />
@@ -210,7 +210,7 @@ export const OfferingDetail: React.FC<OfferingDetailProps> = ({
                 </div>
                 <div className="flex items-center space-x-2">
                   <Clock className="w-4 h-4 text-blue-500" />
-                  <span>Valid until CUET UG 2027 Exam Ends</span>
+                  <span>Full Course Access Included</span>
                 </div>
               </div>
             </Card>

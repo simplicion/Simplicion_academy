@@ -1,56 +1,32 @@
-'use client';
-
 import React from 'react';
-import { loadReferenceTenant } from '../lib/tenant-data';
-import { HeroSection } from '../components/HeroSection';
-import { OfferingsSlider } from '../components/OfferingsSlider';
-import { CategoryExplorer } from '../components/CategoryExplorer';
-import { WhyUsSection } from '../components/WhyUsSection';
-import { FaqSection } from '../components/FaqSection';
+import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { AcademyDirectoryView } from '../components/AcademyDirectoryView';
+import { fetchAcademiesServer } from '../lib/storefront-loader';
 
-export default function HomePage() {
-  const { tenant, categories, offerings, faqs, whyUs } = loadReferenceTenant();
-  const settings = tenant.settings;
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
 
-  const scrollToOfferings = () => {
-    const el = document.getElementById('offerings');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
+export function generateMetadata(): Metadata {
+  return {
+    title: 'Find Your Academy | Learnings Simplicion',
+    description:
+      'Search and open your academy website on Learnings Simplicion. Enter your academy name to access courses, live classes, notes, and assessments.',
   };
+}
 
-  const scrollToCategories = () => {
-    const el = document.getElementById('categories');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-  };
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: { tenant?: string };
+}) {
+  // Redirect legacy ?tenant=<slug> links cleanly to /<slug>
+  if (searchParams?.tenant && searchParams.tenant.trim()) {
+    redirect(`/${encodeURIComponent(searchParams.tenant.trim().toLowerCase())}`);
+  }
 
-  // Render dynamic section ordering configured by the teacher in Teacher Studio
-  const renderSection = (sectionKey: string) => {
-    switch (sectionKey) {
-      case 'hero':
-        return (
-          <HeroSection
-            key="hero"
-            title={tenant.name}
-            tagline={settings.branding.tagline}
-            onExploreClick={scrollToOfferings}
-            onFreeDemoClick={scrollToCategories}
-          />
-        );
-      case 'upcoming-slider':
-        return <OfferingsSlider key="upcoming-slider" offerings={offerings} />;
-      case 'categories':
-        return <CategoryExplorer key="categories" categories={categories} />;
-      case 'why-us':
-        return <WhyUsSection key="why-us" features={whyUs} />;
-      case 'faq':
-        return <FaqSection key="faq" faqs={faqs} />;
-      default:
-        return null;
-    }
-  };
+  // Direct access to "/" never opens a single academy — show the live Academy Search & Directory
+  const academies = await fetchAcademiesServer();
 
-  return (
-    <div className="flex flex-col">
-      {settings.sectionsOrder.map((sectionKey) => renderSection(sectionKey))}
-    </div>
-  );
+  return <AcademyDirectoryView initialAcademies={academies} />;
 }

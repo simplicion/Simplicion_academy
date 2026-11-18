@@ -48,7 +48,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   className,
   hideChaptersCard = false,
   studentName = 'Rahul Sharma',
-  studentPhone = '+91 98765 43210',
+  studentPhone = '',
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);

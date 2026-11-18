@@ -97,7 +97,7 @@ export const CbtScorecard: React.FC<CbtScorecardProps> = ({
               <span>Retake Test</span>
             </Button>
 
-            <Link href="/study">
+            <Link href="/">
               <Button variant="ghost" size="md">
                 <span>Return to Study Hub</span>
                 <ArrowRight className="w-4 h-4 ml-2" />

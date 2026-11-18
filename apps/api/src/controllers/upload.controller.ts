@@ -1,5 +1,11 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
+import {
+  getSupabaseClient,
+  SUPABASE_URL,
+  SUPABASE_SECRET_KEY,
+  SUPABASE_STORAGE_BUCKET,
+} from '../lib/supabase';
 
 export interface PresignedUploadRequest {
   filename: string;
@@ -82,9 +88,41 @@ export class UploadController {
       const uniqueSuffix = crypto.randomBytes(6).toString('hex');
       const fileKey = `tenants/${tenant.id}/${purpose}/${Date.now()}_${uniqueSuffix}_${sanitizedFilename}`;
 
-      // 4. Generate S3 / R2 compatible HMAC presigned URL (15-minute TTL)
-      const storageHost = process.env.STORAGE_ENDPOINT || 'https://storage.simplicion.com';
+      // 4. Generate Supabase Storage signed upload URL (when secret key configured) with fallback
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+      if (SUPABASE_SECRET_KEY && !process.env.VITEST) {
+        try {
+          const supabase = getSupabaseClient();
+          const { data, error } = await supabase.storage
+            .from(SUPABASE_STORAGE_BUCKET)
+            .createSignedUploadUrl(fileKey);
+
+          if (!error && data?.signedUrl) {
+            const { data: pubData } = supabase.storage
+              .from(SUPABASE_STORAGE_BUCKET)
+              .getPublicUrl(fileKey);
+
+            return res.json({
+              success: true,
+              provider: 'supabase_storage',
+              uploadUrl: data.signedUrl,
+              token: data.token,
+              publicUrl: pubData.publicUrl,
+              fileKey,
+              expiresAt,
+              headers: {
+                'Content-Type': contentType,
+              },
+            });
+          }
+        } catch (storageErr: any) {
+          console.warn('[Supabase Storage] Signed upload fallback:', storageErr?.message);
+        }
+      }
+
+      const storageHost =
+        process.env.STORAGE_ENDPOINT || `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_STORAGE_BUCKET}`;
       const signaturePayload = `${fileKey}:${contentType}:${expiresAt}`;
       const signature = crypto
         .createHmac('sha256', process.env.STORAGE_SECRET || 'simplicion_storage_secret_2026')
@@ -96,6 +134,7 @@ export class UploadController {
 
       return res.json({
         success: true,
+        provider: 'supabase_storage',
         uploadUrl,
         publicUrl,
         fileKey,

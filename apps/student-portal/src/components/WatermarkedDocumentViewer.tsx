@@ -66,8 +66,8 @@ export const WatermarkedDocumentViewer: React.FC<WatermarkedDocumentViewerProps>
   documentTitle,
   documentPages,
   studentName = 'Rahul Sharma',
-  studentPhone = '+91 98765 43210',
-  tenantName = 'Humanities CUET Academy',
+  studentPhone = '',
+  tenantName = 'Learnings Simplicion',
   ipAddress = '103.21.244.18',
   allowDownload = false,
 }) => {

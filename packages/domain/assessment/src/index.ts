@@ -3,14 +3,25 @@
  * Conforms to SAFS-00, SAFS-01, SAFS-02 & PRD FR-ASSESS (CBT Engine)
  */
 
+export type QuestionAnswerType =
+  | 'single_choice'
+  | 'multiple_choice'
+  | 'short_text'
+  | 'long_text'
+  | 'true_false'
+  | 'numeric';
+
 export interface Question {
   id: string;
   sectionId?: string;
-  type: 'single_choice' | 'multiple_choice' | 'numeric' | 'true_false';
+  type: QuestionAnswerType;
   textEn: string;
   textHi?: string;
   options: { id: string; textEn: string; textHi?: string }[];
   correctOptionIds: string[];
+  maxLength?: number;
+  placeholder?: string;
+  expectedAnswer?: string;
   explanationEn?: string;
   explanationHi?: string;
   marks: number;
@@ -20,6 +31,7 @@ export interface Question {
 export interface UserAnswer {
   questionId: string;
   selectedOptionIds: string[];
+  textAnswer?: string;
   timeSpentSeconds: number;
   isMarkedForReview: boolean;
 }

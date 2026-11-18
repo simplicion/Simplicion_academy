@@ -2,8 +2,9 @@
 // Conforms to SAFS-02 Data Standards & PRD Section 10
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -315,4 +316,323 @@ model Enrollment {
   @@unique([userId, offeringId])
   @@index([tenantId, userId])
 }
+
+// ----------------------------------------------------
+// Lead Capture & 180 Pay Settlement Logs (Supabase)
+// ----------------------------------------------------
+
+model Lead {
+  id              String         @id @default(uuid())
+  tenantSlug      String
+  categorySlug    String
+  categoryName    String
+  phone           String
+  email           String?
+  createdAt       DateTime       @default(now())
+
+  @@index([tenantSlug, categorySlug])
+}
+
+model One80Transaction {
+  id              String         @id @default(uuid())
+  orderId         String         @unique
+  sessionId       String?
+  tenantSlug      String
+  offeringId      String
+  offeringTitle   String
+  amount          Float          // Whole currency units per 180 Pay spec
+  currency        String         @default("INR")
+  teacherPayout   Float
+  platformFee     Float
+  status          String         @default("created") // "created" | "paid" | "failed"
+  mode            String         @default("live")    // "live" | "sandbox"
+  checkoutUrl     String?
+  studentName     String?
+  studentEmail    String?
+  studentPhone    String?
+  transactionId   String?
+  paidAt          DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([tenantSlug])
+  @@index([offeringId])
+}
+
+// ----------------------------------------------------
+// Dedicated Course Workspace, Live Classes, Chat, Doubts & Notifications
+// ----------------------------------------------------
+
+model StudioCourse {
+  id              String              @id @default(uuid())
+  tenantSlug      String
+  slug            String
+  title           String
+  description     String?
+  priceInr        Float               @default(0)
+  maxStudents     Int?                // null = unlimited seats
+  bannerUrl       String?
+  isSetupComplete Boolean             @default(false)
+  status          String              @default("draft") // "draft" | "live"
+  launchedAt      DateTime?
+  chatMuted       Boolean             @default(false)
+  chatSlowMode    Boolean             @default(false)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  subjects        CourseSubject[]
+  liveSessions    LiveSession[]
+  enrollments     CourseEnrollment[]
+  chatMessages    CourseChatMessage[]
+  doubts          CourseDoubt[]
+  tests           CourseTest[]
+
+  @@unique([tenantSlug, slug])
+  @@index([tenantSlug, status])
+}
+
+model CourseSubject {
+  id              String         @id @default(uuid())
+  courseId        String
+  course          StudioCourse   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  tenantSlug      String
+  title           String
+  description     String?
+  order           Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  lessons         CourseLesson[]
+
+  @@index([courseId])
+  @@index([tenantSlug])
+}
+
+model CourseLesson {
+  id              String         @id @default(uuid())
+  subjectId       String
+  subject         CourseSubject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  courseId        String
+  tenantSlug      String
+  title           String
+  order           Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  topics          CourseTopic[]
+
+  @@index([subjectId])
+  @@index([courseId])
+}
+
+model CourseTopic {
+  id              String         @id @default(uuid())
+  lessonId        String
+  lesson          CourseLesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  courseId        String
+  tenantSlug      String
+  title           String
+  textContent     String?
+  youtubeUrl      String?
+  docLinks        Json           @default("[]") // [{ id, label, url }]
+  order           Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([lessonId])
+  @@index([courseId])
+}
+
+model LiveSession {
+  id              String                  @id @default(uuid())
+  courseId        String
+  course          StudioCourse            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  tenantSlug      String
+  subjectId       String?
+  subjectTitle    String?
+  lessonId        String?
+  lessonTitle     String?
+  topicId         String?
+  topicTitle      String?
+  title           String
+  youtubeLiveUrl  String
+  attachedDocs    Json                    @default("[]") // [{ id, label, url }]
+  scheduledAt     DateTime                @default(now())
+  status          String                  @default("live") // "scheduled" | "live" | "ended"
+  startedAt       DateTime?
+  endedAt         DateTime?
+  createdAt       DateTime                @default(now())
+
+  attendances     LiveSessionAttendance[]
+
+  @@index([courseId, status])
+  @@index([tenantSlug])
+}
+
+model LiveSessionAttendance {
+  id              String         @id @default(uuid())
+  sessionId       String
+  session         LiveSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  courseId        String
+  tenantSlug      String
+  studentId       String
+  studentName     String
+  studentEmail    String?
+  joinedAt        DateTime       @default(now())
+  lastSeenAt      DateTime       @default(now())
+
+  @@unique([sessionId, studentId])
+  @@index([sessionId])
+  @@index([tenantSlug])
+}
+
+model CourseEnrollment {
+  id              String         @id @default(uuid())
+  courseId        String
+  course          StudioCourse   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  tenantSlug      String
+  studentId       String
+  studentName     String
+  studentEmail    String?
+  amountPaid      Float          @default(0)
+  paymentId       String?
+  enrolledAt      DateTime       @default(now())
+
+  @@unique([courseId, studentId])
+  @@index([tenantSlug, studentId])
+  @@index([courseId, enrolledAt])
+}
+
+model TopicCompletion {
+  id              String         @id @default(uuid())
+  courseId        String
+  topicId         String
+  studentId       String
+  completedAt     DateTime       @default(now())
+
+  @@unique([topicId, studentId])
+  @@index([courseId, studentId])
+}
+
+model CourseChatMessage {
+  id              String         @id @default(uuid())
+  courseId        String
+  course          StudioCourse   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  liveSessionId   String?
+  tenantSlug      String
+  senderId        String
+  senderName      String
+  senderRole      String         @default("student") // "student" | "teacher"
+  message         String
+  isPinned        Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+
+  @@index([courseId, createdAt])
+}
+
+model CourseDoubt {
+  id                 String         @id @default(uuid())
+  courseId           String
+  course             StudioCourse   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  tenantSlug         String
+  subjectId          String?
+  lessonId           String?
+  topicId            String?
+  lessonContextLabel String         @default("General Course")
+  studentId          String
+  studentName        String
+  studentEmail       String?
+  question           String
+  reply              String?
+  repliedAt          DateTime?
+  isPinnedFaq        Boolean        @default(false)
+  status             String         @default("open") // "open" | "answered"
+  createdAt          DateTime       @default(now())
+
+  @@index([courseId, status])
+  @@index([courseId, lessonId])
+  @@index([studentId])
+}
+
+model StudentNotification {
+  id              String         @id @default(uuid())
+  tenantSlug      String
+  studentId       String
+  courseId        String?
+  type            String         // "doubt_reply" | "live_started" | "enrollment"
+  title           String
+  body            String
+  linkUrl         String?
+  isRead          Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+
+  @@index([studentId, isRead])
+  @@index([tenantSlug, studentId])
+}
+
+model CourseTest {
+  id              String               @id @default(uuid())
+  courseId        String
+  course          StudioCourse         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  tenantSlug      String
+  title           String
+  description     String?
+  durationMinutes Int                  @default(30)
+  status          String               @default("live") // "live" | "draft"
+  scope           String               @default("course") // "course" | "subject" | "lesson"
+  subjectId       String?
+  subjectTitle    String?
+  lessonId        String?
+  lessonTitle     String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  questions       CourseTestQuestion[]
+  attempts        CourseTestAttempt[]
+
+  @@index([courseId, status])
+  @@index([courseId, subjectId])
+  @@index([courseId, lessonId])
+}
+
+model CourseTestQuestion {
+  id               String     @id @default(uuid())
+  testId           String
+  test             CourseTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  courseId         String
+  type             String     @default("single_choice")
+  prompt           String
+  promptHindi      String?
+  options          Json       @default("[]")
+  correctOptionIds String[]
+  maxLength        Int?
+  placeholder      String?
+  expectedAnswer   String?
+  marks            Float      @default(4.0)
+  negativeMarks    Float      @default(1.0)
+  explanation      String?
+  order            Int        @default(0)
+  createdAt        DateTime   @default(now())
+
+  @@index([testId, order])
+}
+
+model CourseTestAttempt {
+  id               String     @id @default(uuid())
+  testId           String
+  test             CourseTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  courseId         String
+  studentId        String
+  studentName      String
+  answers          Json
+  scorecard        Json
+  totalMarksScored Float      @default(0)
+  maxMarks         Float      @default(0)
+  percentageScore  Float      @default(0)
+  submittedAt      DateTime   @default(now())
+
+  @@index([testId, studentId])
+  @@index([courseId, studentId])
+}
+
 

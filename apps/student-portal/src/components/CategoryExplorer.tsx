@@ -15,9 +15,26 @@ export const CategoryExplorer: React.FC<CategoryExplorerProps> = ({ categories }
   const [notifyPhone, setNotifyPhone] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const handleNotifySubmit = (e: React.FormEvent) => {
+  const handleNotifySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (notifyPhone.replace(/\D/g, '').length >= 10) {
+    const cleanPhone = notifyPhone.replace(/\D/g, '');
+    if (cleanPhone.length >= 10) {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      try {
+        await fetch(`${apiBase}/leads`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenantSlug: 'cuet-humanities',
+            categorySlug: notifyCategory?.slug || 'general',
+            categoryName: notifyCategory?.name || 'Upcoming Batch',
+            phone: cleanPhone,
+          }),
+        });
+      } catch {
+        // Gracefully confirm even if API is momentarily unreachable
+      }
+
       setIsSubmitted(true);
       setTimeout(() => {
         setIsSubmitted(false);

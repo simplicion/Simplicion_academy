@@ -1,264 +1,337 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Users,
   IndianRupee,
   BookOpen,
   MessageCircleQuestion,
-  Palette,
   ChevronRight,
+  Plus,
 } from 'lucide-react';
-import { Card, Button, Badge } from '@simplicion/ui';
-import { MetricCard } from '../../components/dashboard/MetricCard';
+import { createClient as createSupabaseClient } from '@/utils/supabase/client';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export default function TeacherDashboardPage() {
-  const batches = [
-    {
-      id: 'cuet-humanities-foundation-2027',
-      name: 'CUET 2027: Humanities Foundation Batch',
-      target: 'CUET 2027 UG',
-      enrolled: 890,
-      price: '₹ 4,999',
-      revenue: '₹ 44,49,110',
-      status: 'active',
-      completion: 68,
-    },
-    {
-      id: 'cuet-history-domain-crash',
-      name: 'CUET History Domain Intensive Crash Course',
-      target: 'CUET 2026',
-      enrolled: 420,
-      price: '₹ 1,999',
-      revenue: '₹ 8,39,580',
-      status: 'active',
-      completion: 82,
-    },
-    {
-      id: 'political-science-ncert-mastery',
-      name: 'Political Science Class 12 NCERT Mastery',
-      target: 'Board + CUET',
-      enrolled: 110,
-      price: 'Free',
-      revenue: '₹ 0',
-      status: 'active',
-      completion: 45,
-    },
-  ];
+  const [academyName, setAcademyName] = useState('Learnings Simplicion');
+  const [metrics, setMetrics] = useState({
+    totalCourses: 0,
+    liveCourses: 0,
+    totalEnrollments: 0,
+    uniqueStudents: 0,
+    grossRevenue: 0,
+    netTeacherRevenue: 0,
+    openDoubts: 0,
+    totalDoubts: 0,
+    resolutionRate: 100,
+  });
+  const [courses, setCourses] = useState<any[]>([]);
+  const [recentDoubts, setRecentDoubts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const recentDoubts = [
-    {
-      id: 'd1',
-      student: 'Aarav Sharma',
-      batch: 'CUET 2027 Humanities Foundation',
-      topic: 'Ashokan Inscriptions & Brahmi decipherment',
-      time: '15 mins ago',
-      status: 'pending',
-    },
-    {
-      id: 'd2',
-      student: 'Sneha Mukherjee',
-      batch: 'CUET History Domain Crash',
-      topic: 'Harappan script & seals significance in trade',
-      time: '1 hour ago',
-      status: 'pending',
-    },
-    {
-      id: 'd3',
-      student: 'Vikas Rao',
-      batch: 'CUET 2027 Humanities Foundation',
-      topic: 'Difference between Megasthenes Indica and Kautilya Arthashastra',
-      time: '3 hours ago',
-      status: 'answered',
-    },
-  ];
+  const loadOverview = useCallback(async (slug: string) => {
+    try {
+      const [ovRes, cfgRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/academy/overview?tenant=${encodeURIComponent(slug)}`),
+        fetch(`${API_BASE_URL}/site-config?tenant=${encodeURIComponent(slug)}`),
+      ]);
+      const [ovData, cfgData] = await Promise.all([ovRes.json(), cfgRes.json()]);
+      if (ovData.success) {
+        if (ovData.metrics) setMetrics(ovData.metrics);
+        setCourses(ovData.courses || []);
+        setRecentDoubts(ovData.recentDoubts || []);
+      }
+      if (cfgData?.success && cfgData.data?.name) {
+        setAcademyName(cfgData.data.name);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let slug = 'cuet-humanities';
+    const stored = localStorage.getItem('simplicion_active_tenant');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed.slug) slug = parsed.slug;
+      } catch {
+        // ignore
+      }
+    }
+    loadOverview(slug);
+
+    let channel: any = null;
+    try {
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+        const supabase = createSupabaseClient();
+        channel = supabase
+          .channel('academy-overview-live')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'StudioCourse' }, () =>
+            loadOverview(slug)
+          )
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'CourseEnrollment' }, () =>
+            loadOverview(slug)
+          )
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'CourseDoubt' }, () =>
+            loadOverview(slug)
+          )
+          .subscribe();
+      }
+    } catch {
+      // optional
+    }
+
+    return () => {
+      if (channel) {
+        try {
+          createSupabaseClient().removeChannel(channel);
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, [loadOverview]);
 
   return (
-    <div className="space-y-8">
-      {/* Welcome Banner */}
-      <div className="rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 p-6 sm:p-8 text-white shadow-lg relative overflow-hidden">
-        <div className="relative z-10 max-w-2xl">
-          <Badge variant="secondary" size="sm" className="mb-3 bg-white/20 text-white border-0">
-            Academy Overview
-          </Badge>
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-            Welcome back, Dr. Rajesh Varma
-          </h2>
-          <p className="mt-2 text-sm text-blue-100 leading-relaxed">
-            Your academy has 1,420 enrolled students actively learning. 3 student doubts are awaiting your response in the CUET Humanities batches.
-          </p>
+    <div className="space-y-6 w-full min-w-0 pb-10">
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/builder">
-              <Button variant="secondary" size="md" className="gap-2 bg-white text-blue-900 hover:bg-blue-50 font-bold">
-                <Palette className="w-4 h-4 text-blue-700" />
-                <span>Customize Student Portal</span>
-              </Button>
-            </Link>
-            <Link href="/batches">
-              <Button variant="outline" size="md" className="gap-2 text-white border-white/30 hover:bg-white/10 font-bold">
-                <BookOpen className="w-4 h-4" />
-                <span>Manage Batches</span>
-              </Button>
-            </Link>
-            <Link href="/payouts">
-              <Button variant="outline" size="md" className="gap-2 text-white border-white/30 hover:bg-white/10 font-bold">
-                <IndianRupee className="w-4 h-4" />
-                <span>Earnings &amp; Payouts</span>
-              </Button>
-            </Link>
-          </div>
-        </div>
-
-        {/* Decorative graphic */}
-        <div className="absolute -right-12 -bottom-12 w-64 h-64 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
+      {/* Clean SAFS-04 Overview Banner */}
+      <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-6">
+        <h1
+          className="text-xl sm:text-2xl font-bold text-[#0f172a]"
+          style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+        >
+          {academyName}
+        </h1>
+        <p className="text-xs text-[#64748b] mt-1">
+          Manage courses, customize your public website &amp; brand color, and respond to students in real time.
+        </p>
       </div>
 
-      {/* Metric Cards Grid */}
+      {/* Live 4 KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          title="Active Students"
-          value="1,420"
-          change="+18.4%"
-          trend="up"
-          icon={Users}
-          description="vs last 30 days"
-        />
-        <MetricCard
-          title="Gross Revenue"
-          value="₹ 52,88,690"
-          change="+24.2%"
-          trend="up"
-          icon={IndianRupee}
-          description="lifetime gross"
-        />
-        <MetricCard
-          title="Live Batches"
-          value="3 Active"
-          change="100% On-Track"
-          trend="neutral"
-          icon={BookOpen}
-          description="CUET Humanities"
-        />
-        <MetricCard
-          title="Doubt Resolution"
-          value="96.2%"
-          change="3 pending"
-          trend="up"
-          icon={MessageCircleQuestion}
-          description="avg reply 42m"
-        />
+        <div className="p-5 bg-white rounded-xl border border-[#e2e8f0] shadow-sm">
+          <div className="flex items-center justify-between text-xs font-semibold text-[#64748b] uppercase tracking-wider">
+            <span>Enrolled Students</span>
+            <div className="w-8 h-8 rounded-lg bg-[#eff6ff] text-[#2563eb] flex items-center justify-center">
+              <Users className="w-4 h-4" />
+            </div>
+          </div>
+          <p
+            className="text-2xl font-bold text-[#0f172a] mt-3"
+            style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+          >
+            {metrics.uniqueStudents.toLocaleString('en-IN')}
+          </p>
+          <p className="text-xs text-[#64748b] mt-1">
+            {metrics.totalEnrollments} total course enrollment{metrics.totalEnrollments === 1 ? '' : 's'}
+          </p>
+        </div>
+
+        <div className="p-5 bg-white rounded-xl border border-[#e2e8f0] shadow-sm">
+          <div className="flex items-center justify-between text-xs font-semibold text-[#64748b] uppercase tracking-wider">
+            <span>Gross Revenue</span>
+            <div className="w-8 h-8 rounded-lg bg-[#eff6ff] text-[#2563eb] flex items-center justify-center">
+              <IndianRupee className="w-4 h-4" />
+            </div>
+          </div>
+          <p
+            className="text-2xl font-bold text-[#0f172a] mt-3"
+            style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+          >
+            ₹ {metrics.grossRevenue.toLocaleString('en-IN')}
+          </p>
+          <p className="text-xs text-[#059669] font-medium mt-1">
+            95% Net Share: ₹{metrics.netTeacherRevenue.toLocaleString('en-IN')}
+          </p>
+        </div>
+
+        <div className="p-5 bg-white rounded-xl border border-[#e2e8f0] shadow-sm">
+          <div className="flex items-center justify-between text-xs font-semibold text-[#64748b] uppercase tracking-wider">
+            <span>Published Courses</span>
+            <div className="w-8 h-8 rounded-lg bg-[#eff6ff] text-[#2563eb] flex items-center justify-center">
+              <BookOpen className="w-4 h-4" />
+            </div>
+          </div>
+          <p
+            className="text-2xl font-bold text-[#0f172a] mt-3"
+            style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+          >
+            {metrics.liveCourses} Live
+          </p>
+          <p className="text-xs text-[#64748b] mt-1">
+            {metrics.totalCourses} total course{metrics.totalCourses === 1 ? '' : 's'} in studio
+          </p>
+        </div>
+
+        <div className="p-5 bg-white rounded-xl border border-[#e2e8f0] shadow-sm">
+          <div className="flex items-center justify-between text-xs font-semibold text-[#64748b] uppercase tracking-wider">
+            <span>Doubt Resolution</span>
+            <div className="w-8 h-8 rounded-lg bg-[#eff6ff] text-[#2563eb] flex items-center justify-center">
+              <MessageCircleQuestion className="w-4 h-4" />
+            </div>
+          </div>
+          <p
+            className="text-2xl font-bold text-[#059669] mt-3"
+            style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+          >
+            {metrics.resolutionRate}%
+          </p>
+          <p className="text-xs text-[#64748b] mt-1">
+            {metrics.openDoubts} open doubt{metrics.openDoubts === 1 ? '' : 's'} awaiting reply
+          </p>
+        </div>
       </div>
 
-      {/* Grid: Batches Performance & Recent Doubts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Batches Table (2 cols) */}
-        <div className="lg:col-span-2 space-y-4">
+      {/* Main Split: Live Courses Table + Recent Doubts Queue */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-slate-900">Active Batches &amp; Offerings</h3>
-              <p className="text-xs text-slate-500">Overview of student participation and commercial metrics</p>
+              <h2 className="text-base font-bold text-[#0f172a]">Your Academy Courses</h2>
+              <p className="text-xs text-[#64748b]">
+                Click any course to open its dedicated dashboard, subjects, tests, live classes &amp; doubts
+              </p>
             </div>
-            <Link href="/batches">
-              <Button variant="outline" size="sm" className="gap-1 text-xs">
-                <span>View All</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </Button>
+            <Link
+              href="/batches"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#334155] bg-white hover:bg-[#f8fafc] border border-[#e2e8f0]"
+            >
+              <span>All Courses</span>
+              <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
-                  <tr>
-                    <th className="py-3 px-4">Batch Name</th>
-                    <th className="py-3 px-4">Price</th>
-                    <th className="py-3 px-4">Enrolled</th>
-                    <th className="py-3 px-4">Revenue</th>
-                    <th className="py-3 px-4">Avg Progress</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {batches.map((batch) => (
-                    <tr key={batch.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-3.5 px-4">
-                        <p className="font-bold text-slate-900">{batch.name}</p>
-                        <span className="text-[10px] text-slate-500">{batch.target}</span>
-                      </td>
-                      <td className="py-3.5 px-4 font-semibold text-slate-700">{batch.price}</td>
-                      <td className="py-3.5 px-4 font-bold text-slate-900">{batch.enrolled}</td>
-                      <td className="py-3.5 px-4 font-bold text-emerald-600">{batch.revenue}</td>
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-16 h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-blue-600 rounded-full"
-                              style={{ width: `${batch.completion}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-[11px] font-bold text-slate-600">{batch.completion}%</span>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <Link href={`/batches/${batch.id}/curriculum`}>
-                          <Button variant="outline" size="sm" className="text-[11px] py-1 px-2.5">
-                            Curriculum
-                          </Button>
-                        </Link>
-                      </td>
+          <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden shadow-sm">
+            {isLoading ? (
+              <div className="p-10 text-center text-xs text-[#64748b]">Loading live courses...</div>
+            ) : courses.length === 0 ? (
+              <div className="p-10 text-center space-y-3">
+                <p className="text-sm font-semibold text-[#0f172a]">No courses created yet</p>
+                <p className="text-xs text-[#64748b]">
+                  Create your first course in 5 seconds and publish it directly to your student website.
+                </p>
+                <Link
+                  href="/batches"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#2563eb] hover:bg-[#1d4ed8]"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create First Course</span>
+                </Link>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#f8fafc] border-b border-[#e2e8f0] text-[#64748b] font-semibold uppercase tracking-wider">
+                    <tr>
+                      <th className="py-3 px-4">Course</th>
+                      <th className="py-3 px-4">Price</th>
+                      <th className="py-3 px-4">Enrolled</th>
+                      <th className="py-3 px-4">Revenue</th>
+                      <th className="py-3 px-4 text-right">Workspace</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-[#f1f5f9]">
+                    {courses.map((c) => (
+                      <tr key={c.id} className="hover:bg-[#f8fafc] transition">
+                        <td className="py-3.5 px-4">
+                          <Link
+                            href={`/batches/${c.id}`}
+                            className="font-bold text-[#0f172a] hover:text-[#2563eb] block"
+                          >
+                            {c.title}
+                          </Link>
+                          <span className="text-[11px] text-[#64748b]">
+                            {c.subjectCount} Subjects • {c.testCount} Tests •{' '}
+                            {c.status === 'live' ? 'Live' : 'Setup Pending'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 font-semibold text-[#334155]">
+                          {c.priceInr > 0 ? `₹${c.priceInr.toLocaleString('en-IN')}` : 'Free'}
+                        </td>
+                        <td className="py-3.5 px-4 font-bold text-[#0f172a]">
+                          {c.enrolledCount}
+                          {c.maxStudents ? ` / ${c.maxStudents}` : ''}
+                        </td>
+                        <td className="py-3.5 px-4 font-bold text-[#059669]">
+                          ₹{Number(c.revenue || 0).toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <Link
+                            href={`/batches/${c.id}`}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-[#2563eb] bg-[#eff6ff] hover:bg-[#dbeafe]"
+                          >
+                            <span>Open</span>
+                            <ChevronRight className="w-3 h-3" />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Doubts Queue Widget (1 col) */}
-        <div className="space-y-4">
+        {/* Live Student Doubts Queue */}
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-slate-900">Student Doubts Queue</h3>
-              <p className="text-xs text-slate-500">Unresolved academic queries</p>
+              <h2 className="text-base font-bold text-[#0f172a]">Recent Student Doubts</h2>
+              <p className="text-xs text-[#64748b]">Across all courses</p>
             </div>
-            <Link href="/doubts">
-              <Button variant="outline" size="sm" className="gap-1 text-xs">
-                <span>All Doubts</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </Button>
+            <Link
+              href="/batches"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#334155] bg-white hover:bg-[#f8fafc] border border-[#e2e8f0]"
+            >
+              <span>By Course</span>
+              <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
           <div className="space-y-3">
-            {recentDoubts.map((doubt) => (
-              <Card key={doubt.id} className="p-4 hover:border-slate-300 transition-all space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs font-bold text-slate-900">{doubt.student}</span>
-                    <span className="text-[10px] text-slate-400">• {doubt.time}</span>
+            {recentDoubts.length === 0 ? (
+              <div className="p-6 bg-white rounded-xl border border-[#e2e8f0] text-center text-xs text-[#64748b]">
+                No doubts submitted yet. When students raise doubts in any course classroom, they appear here in real time.
+              </div>
+            ) : (
+              recentDoubts.map((doubt) => (
+                <div
+                  key={doubt.id}
+                  className="bg-white rounded-xl border border-[#e2e8f0] p-4 shadow-xs space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-[#0f172a] truncate">
+                      {doubt.studentName}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                        doubt.status === 'answered'
+                          ? 'bg-[#ecfdf5] text-[#047857]'
+                          : 'bg-[#fffbeb] text-[#b45309]'
+                      }`}
+                    >
+                      {doubt.status === 'answered' ? 'Answered' : 'Open'}
+                    </span>
                   </div>
-                  {doubt.status === 'pending' ? (
-                    <Badge variant="warning" size="sm">Pending</Badge>
-                  ) : (
-                    <Badge variant="success" size="sm">Resolved</Badge>
-                  )}
+                  <p className="text-xs text-[#334155] line-clamp-2">&ldquo;{doubt.question}&rdquo;</p>
+                  <div className="pt-1.5 border-t border-[#f1f5f9] flex items-center justify-between text-[11px] text-[#64748b]">
+                    <span className="truncate max-w-[170px]">{doubt.courseTitle}</span>
+                    <Link
+                      href={`/batches/${doubt.courseId}/doubts`}
+                      className="text-[#2563eb] font-semibold hover:underline shrink-0"
+                    >
+                      Reply →
+                    </Link>
+                  </div>
                 </div>
-
-                <p className="text-xs text-slate-700 font-medium line-clamp-2">
-                  &ldquo;{doubt.topic}&rdquo;
-                </p>
-
-                <div className="pt-1 flex items-center justify-between border-t border-slate-100 text-[10px] text-slate-500">
-                  <span className="truncate max-w-[180px]">{doubt.batch}</span>
-                  <Link href="/doubts">
-                    <span className="text-blue-600 hover:underline font-bold">Reply &rarr;</span>
-                  </Link>
-                </div>
-              </Card>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>

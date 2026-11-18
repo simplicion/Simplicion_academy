@@ -1,11 +1,9 @@
 import { MetadataRoute } from 'next';
-import { loadReferenceTenant } from '../lib/tenant-data';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const { offerings } = loadReferenceTenant();
-  const baseUrl = 'https://cuet.simplicion.com';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://learnings.simplicion.com';
 
-  const routes: MetadataRoute.Sitemap = [
+  return [
     {
       url: baseUrl,
       lastModified: new Date(),
@@ -13,16 +11,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1.0,
     },
   ];
-
-  for (const offering of offerings) {
-    routes.push({
-      url: `${baseUrl}/o/${offering.slug}`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.9,
-    });
-  }
-
-  return routes;
 }
 

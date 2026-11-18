@@ -1,5 +1,4 @@
 import React from 'react';
-import { Card } from '@simplicion/ui';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 export interface MetricCardProps {
@@ -20,36 +19,42 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   description,
 }) => {
   return (
-    <Card className="p-5 flex flex-col justify-between hover:border-slate-300 transition-all">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{title}</span>
-        <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-          <Icon className="w-5 h-5" />
+    <div className="p-5 bg-white rounded-xl border border-[#e2e8f0] shadow-sm flex flex-col justify-between min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-[#64748b] uppercase tracking-wider truncate">
+          {title}
+        </span>
+        <div className="w-9 h-9 rounded-lg bg-[#eff6ff] text-[#2563eb] flex items-center justify-center shrink-0">
+          <Icon className="w-4 h-4" />
         </div>
       </div>
 
       <div className="mt-4">
-        <h3 className="text-2xl font-black text-slate-900 tracking-tight">{value}</h3>
+        <h3
+          className="text-2xl font-bold text-[#0f172a] tracking-tight"
+          style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+        >
+          {value}
+        </h3>
         {change && (
-          <div className="flex items-center space-x-1.5 mt-1.5">
+          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
             <span
-              className={`flex items-center text-xs font-bold ${
+              className={`flex items-center text-xs font-semibold ${
                 trend === 'up'
-                  ? 'text-emerald-600'
+                  ? 'text-[#059669]'
                   : trend === 'down'
-                  ? 'text-rose-600'
-                  : 'text-slate-500'
+                  ? 'text-[#dc2626]'
+                  : 'text-[#64748b]'
               }`}
             >
               {trend === 'up' && <ArrowUpRight className="w-3.5 h-3.5 mr-0.5" />}
               {trend === 'down' && <ArrowDownRight className="w-3.5 h-3.5 mr-0.5" />}
               {change}
             </span>
-            {description && <span className="text-[11px] text-slate-400">{description}</span>}
+            {description && <span className="text-xs text-[#64748b]">{description}</span>}
           </div>
         )}
       </div>
-    </Card>
+    </div>
   );
 };
-

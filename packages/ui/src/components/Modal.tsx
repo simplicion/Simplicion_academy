@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { X } from 'lucide-react';
 
@@ -21,6 +22,12 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   size = 'md',
 }) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) onClose();
@@ -30,12 +37,12 @@ export const Modal: React.FC<ModalProps> = ({
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = '';
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const sizeStyles = {
     sm: 'max-w-sm',
@@ -44,42 +51,39 @@ export const Modal: React.FC<ModalProps> = ({
     xl: 'max-w-2xl',
   };
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
-        {/* Backdrop */}
-        <div
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
-          onClick={onClose}
-          aria-hidden="true"
-        />
-
-        {/* Modal Panel */}
-        <div
-          className={clsx(
-            'relative transform overflow-hidden rounded-[var(--brand-radius,16px)] bg-white dark:bg-slate-900 p-6 text-left shadow-2xl transition-all sm:my-8 w-full border border-slate-200 dark:border-slate-800',
-            sizeStyles[size]
-          )}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-            <div>
-              {title && <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>}
-              {description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{description}</p>}
-            </div>
-            <button
-              onClick={onClose}
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              aria-label="Close"
-            >
-              <X className="h-4 w-4" />
-            </button>
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-[2px] !mt-0"
+      onClick={onClose}
+    >
+      {/* Modal Panel */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={clsx(
+          'relative w-full max-h-[90dvh] flex flex-col overflow-hidden rounded-[var(--brand-radius,16px)] bg-white dark:bg-slate-900 text-left shadow-2xl border border-slate-200 dark:border-slate-800',
+          sizeStyles[size]
+        )}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+          <div className="min-w-0 pr-3">
+            {title && <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 truncate">{title}</h3>}
+            {description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{description}</p>}
           </div>
-          <div className="mt-4">{children}</div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
+        <div className="p-6 overflow-y-auto flex-1">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

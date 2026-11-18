@@ -1,16 +1,146 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --brand-primary: #1e3a8a;
-  --brand-primary-hover: #172554;
-  --brand-accent: #f59e0b;
-  --brand-radius: 12px;
-  --brand-font: "Noto Sans Devanagari", Inter, sans-serif;
+  --brand-primary: #2563eb;
+  --brand-primary-hover: #1d4ed8;
+  --brand-primary-soft: #eff6ff;
+  --brand-primary-border: #dbeafe;
+  --brand-accent: #2563eb;
+  --brand-radius: 10px;
+  --brand-font: 'Inter', 'Noto Sans Devanagari', sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: clip;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
   font-family: var(--brand-font);
+  overflow-x: clip;
 }
 
+/* Prevent space-y-* parents from offsetting fixed modals & drawers */
+.fixed.inset-0,
+[role='dialog'].fixed {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes backdropFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes accordionReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@layer utilities {
+  .animate-page-enter {
+    animation: pageEnter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .animate-modal-pop {
+    animation: modalPop 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .animate-backdrop-fade {
+    animation: backdropFade 180ms ease-out both;
+  }
+  .animate-accordion-open {
+    animation: accordionReveal 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .animate-toast-in {
+    animation: toastSlideUp 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .card-interactive {
+    transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 200ms ease,
+      border-color 200ms ease;
+  }
+  .card-interactive:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px -12px rgba(15, 23, 42, 0.14);
+  }
+}
+
+[role='dialog'].justify-center {
+  animation: backdropFade 160ms ease-out both;
+}
+[role='dialog'].justify-center > div {
+  animation: modalPop 210ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+button:not(:disabled),
+a {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+button:not(:disabled):active {
+  transform: scale(0.985);
+}
+
+input,
+select,
+textarea {
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

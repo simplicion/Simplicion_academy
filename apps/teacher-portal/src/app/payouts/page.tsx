@@ -13,8 +13,10 @@ import {
   Send,
   RefreshCw,
   ExternalLink,
+  Lock,
 } from 'lucide-react';
 import { Card, Button, Badge, Modal, Input } from '@simplicion/ui';
+import { SubscriptionUpgradeModal } from '../../components/subscription/SubscriptionUpgradeModal';
 
 interface PayoutRecord {
   payoutId: string;
@@ -30,61 +32,87 @@ interface PayoutRecord {
 }
 
 export default function PayoutsPage() {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [tenantSlug, setTenantSlug] = useState('cuet-humanities');
   const [balance, setBalance] = useState({
-    lifetimeEarnings: 47500,
-    totalDisbursed: 28500,
-    availableBalance: 19000,
-    subscriptionStatus: 'active',
-    subscriptionFee: '₹200/month',
+    lifetimeEarnings: 0,
+    totalDisbursed: 0,
+    availableBalance: 0,
+    subscriptionStatus: 'inactive',
+    subscriptionFee: '₹250/month',
+    subscriptionExpiresAt: null as string | null,
   });
-  const [payouts, setPayouts] = useState<PayoutRecord[]>([
-    {
-      payoutId: '180_payout_88291044',
-      tenantId: 'humanities-cuet',
-      amount: 28500,
-      currency: 'INR',
-      status: 'completed',
-      payoutMethod: 'upi',
-      recipient: 'rajesh.cuet@okhdfcbank',
-      recipientName: 'Dr. Rajesh Varma',
-      transactionRef: '180_imps_88291044',
-      createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ]);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [payouts, setPayouts] = useState<PayoutRecord[]>([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [payoutMethod, setPayoutMethod] = useState<'upi' | 'bank'>('upi');
-  const [amountInput, setAmountInput] = useState('19000');
-  const [upiId, setUpiId] = useState('rajesh.cuet@okhdfcbank');
+  const [amountInput, setAmountInput] = useState('');
+  const [upiId, setUpiId] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [ifsc, setIfsc] = useState('');
-  const [accountHolder, setAccountHolder] = useState('Dr. Rajesh Varma');
+  const [accountHolder, setAccountHolder] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Load existing payouts from 180 Pay API if accessible
+  const resolveActiveSlug = () => {
+    let slug = 'cuet-humanities';
+    try {
+      const saved = localStorage.getItem('simplicion_active_tenant');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.slug) slug = String(parsed.slug).toLowerCase();
+      }
+    } catch {
+      // ignore
+    }
+    return slug;
+  };
+
+  // Load live payouts & Educator Subscription from 180 Pay API (Supabase-backed)
   const loadPayoutData = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:4000/pay/180/payouts?tenantId=humanities-cuet');
+      const activeSlug = resolveActiveSlug();
+      setTenantSlug(activeSlug);
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const [res, subRes] = await Promise.all([
+        fetch(`${apiBase}/pay/180/payouts?tenant=${encodeURIComponent(activeSlug)}&tenantId=${encodeURIComponent(activeSlug)}`),
+        fetch(`${apiBase}/subscription/status?tenant=${encodeURIComponent(activeSlug)}`),
+      ]);
+      let liveStatus = 'inactive';
+      let liveExpiresAt: string | null = null;
+      if (subRes.ok) {
+        const subData = await subRes.json();
+        if (subData.success && subData.subscription) {
+          liveStatus = subData.subscription.isActive ? 'active' : 'inactive';
+          liveExpiresAt = subData.subscription.expiresAt || null;
+        }
+      }
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
+          const bal = data.balance || data.summary || {};
           setBalance({
-            lifetimeEarnings: data.balance.lifetimeEarnings,
-            totalDisbursed: data.balance.totalDisbursed,
-            availableBalance: data.balance.availableBalance,
-            subscriptionStatus: data.balance.subscriptionStatus || 'active',
-            subscriptionFee: '₹200/month',
+            lifetimeEarnings: Number(bal.lifetimeEarnings ?? bal.totalNetEarned ?? 0),
+            totalDisbursed: Number(bal.totalDisbursed ?? 0),
+            availableBalance: Number(bal.availableBalance ?? 0),
+            subscriptionStatus: liveStatus || bal.subscriptionStatus || 'inactive',
+            subscriptionFee: '₹250/month',
+            subscriptionExpiresAt: liveExpiresAt,
           });
-          if (data.history && data.history.length > 0) {
-            setPayouts(data.history);
-          }
+          setPayouts(Array.isArray(data.history) ? data.history : []);
         }
+      } else {
+        setBalance((prev) => ({
+          ...prev,
+          subscriptionStatus: liveStatus,
+          subscriptionFee: '₹250/month',
+          subscriptionExpiresAt: liveExpiresAt,
+        }));
       }
     } catch {
-      // Graceful fallback to initial seed state
+      // Keep zero balance on network error — never fabricate mock payouts
     } finally {
       setLoading(false);
     }
@@ -92,6 +120,8 @@ export default function PayoutsPage() {
 
   useEffect(() => {
     loadPayoutData();
+    window.addEventListener('simplicion-subscription-updated', loadPayoutData);
+    return () => window.removeEventListener('simplicion-subscription-updated', loadPayoutData);
   }, []);
 
   const handleRequestPayout = async (e: React.FormEvent) => {
@@ -112,7 +142,7 @@ export default function PayoutsPage() {
     setSuccessMessage(null);
 
     const payload = {
-      tenantId: 'humanities-cuet',
+      tenantId: tenantSlug,
       amount: withdrawAmt,
       payoutMethod,
       destination:
@@ -122,7 +152,8 @@ export default function PayoutsPage() {
     };
 
     try {
-      const res = await fetch('http://localhost:4000/pay/180/payouts/request', {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiBase}/pay/180/payouts/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -145,151 +176,173 @@ export default function PayoutsPage() {
         alert(data.error || 'Payout request failed.');
       }
     } catch {
-      // Offline/Local Simulation fallback
-      const simulatedPayout: PayoutRecord = {
-        payoutId: `180_payout_${Date.now()}`,
-        tenantId: 'humanities-cuet',
-        amount: withdrawAmt,
-        currency: 'INR',
-        status: 'completed',
-        payoutMethod,
-        recipient: payoutMethod === 'upi' ? upiId : accountNumber,
-        recipientName: accountHolder,
-        transactionRef: `180_imps_${Date.now().toString().slice(-8)}`,
-        createdAt: new Date().toISOString(),
-      };
-      setPayouts((prev) => [simulatedPayout, ...prev]);
-      setBalance((prev) => ({
-        ...prev,
-        totalDisbursed: prev.totalDisbursed + withdrawAmt,
-        availableBalance: Math.max(0, prev.availableBalance - withdrawAmt),
-      }));
-      setSuccessMessage(`Disbursed ₹${withdrawAmt.toLocaleString('en-IN')} via 180 Pay!`);
-      setTimeout(() => {
-        setIsModalOpen(false);
-        setSuccessMessage(null);
-      }, 1500);
+      alert('Unable to connect to 180 Pay settlement server. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-12">
-      {/* Header Banner */}
-      <div className="rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border border-slate-800">
-        <div className="relative z-10 max-w-3xl">
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-blue-500/20 text-blue-300 text-xs font-bold border border-blue-500/30">
-              <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-              <span>180 Pay Automated Disbursal Engine</span>
+    <div className="space-y-6 w-full min-w-0 pb-12">
+      {/* SAFS-04 Clean Payouts Header Card */}
+      <div className="rounded-xl bg-white p-6 border border-[#e2e8f0] shadow-sm flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+        <div className="max-w-2xl space-y-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#eff6ff] text-[#1d4ed8] text-xs font-semibold border border-[#dbeafe]">
+              <Sparkles className="w-3.5 h-3.5 text-[#2563eb]" />
+              <span>180 Pay Settlement Engine</span>
             </span>
-            <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Teacher Subscription: ₹200/mo Active</span>
-            </span>
+            {balance.subscriptionStatus === 'active' ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#ecfdf5] text-[#047857] text-xs font-semibold border border-[#a7f3d0]">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#10b981]" />
+                <span>Educator Plan: ₹250/mo Active</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsUpgradeModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#fffbeb] hover:bg-[#fef3c7] text-[#b45309] text-xs font-semibold border border-[#fde68a] transition-colors"
+              >
+                <Lock className="w-3.5 h-3.5 text-[#d97706]" />
+                <span>Educator Plan Inactive — Upgrade ₹250/mo</span>
+              </button>
+            )}
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-            Earnings &amp; Disbursals Studio
+          <h1
+            className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0f172a]"
+            style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+          >
+            Earnings &amp; Payouts
           </h1>
-          <p className="mt-2 text-sm text-slate-300 leading-relaxed">
-            All student batch admissions automatically split (95% direct to you / 5% platform fee) into your 180 Pay settlement ledger. Request instant disbursals anytime directly to your UPI ID or Bank Account with zero manual intervention.
+          <p className="text-sm text-[#475569] leading-relaxed">
+            Student admissions split automatically (95% direct to you, 5% platform fee) into your 180 Pay ledger. Request instant disbursals to your UPI ID or bank account anytime.
           </p>
+        </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button
-              variant="primary"
-              size="md"
-              className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-900/40"
-              onClick={() => {
-                setAmountInput(balance.availableBalance.toString());
-                setIsModalOpen(true);
-              }}
-              disabled={balance.availableBalance <= 0}
-            >
-              <ArrowDownToLine className="w-4 h-4" />
-              <span>Request Payout via 180 Pay</span>
-            </Button>
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#2563eb] hover:bg-[#1d4ed8] shadow-sm transition-colors disabled:opacity-50"
+            onClick={() => {
+              setAmountInput(balance.availableBalance.toString());
+              setIsModalOpen(true);
+            }}
+            disabled={balance.availableBalance <= 0}
+          >
+            <ArrowDownToLine className="w-4 h-4" />
+            <span>Request Payout via 180 Pay</span>
+          </button>
 
-            <Button
-              variant="outline"
-              size="md"
-              className="gap-2 text-slate-300 border-slate-700 hover:bg-slate-800"
-              onClick={loadPayoutData}
-              disabled={loading}
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              <span>Refresh Balance</span>
-            </Button>
-          </div>
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-[#334155] bg-white hover:bg-[#f8fafc] border border-[#cbd5e1] transition-colors disabled:opacity-50"
+            onClick={loadPayoutData}
+            disabled={loading}
+          >
+            <RefreshCw className={`w-4 h-4 text-[#64748b] ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh Balance</span>
+          </button>
         </div>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card padding="md" className="border-slate-200">
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-2 font-semibold">
-            <span>Available for Payout</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+      {/* Metrics Row (Unified SAFS-04 Surface & Token Palette) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="p-5 bg-white rounded-xl border border-[#e2e8f0] shadow-sm min-w-0">
+          <div className="flex items-center justify-between text-xs text-[#64748b] mb-2 font-semibold uppercase tracking-wider">
+            <span className="truncate">Available for Payout</span>
+            <div className="w-8 h-8 rounded-lg bg-[#eff6ff] text-[#2563eb] flex items-center justify-center shrink-0">
               <Wallet className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-black text-slate-900">
+          <p
+            className="text-2xl font-bold text-[#0f172a]"
+            style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+          >
             ₹ {balance.availableBalance.toLocaleString('en-IN')}
           </p>
-          <div className="mt-2 flex items-center text-xs text-emerald-600 font-semibold">
-            <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+          <div className="mt-2 flex items-center text-xs text-[#059669] font-semibold">
+            <CheckCircle2 className="w-3.5 h-3.5 mr-1 shrink-0" />
             <span>Ready for instant transfer</span>
           </div>
-        </Card>
+        </div>
 
-        <Card padding="md" className="border-slate-200">
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-2 font-semibold">
-            <span>Lifetime Net Share (95%)</span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+        <div className="p-5 bg-white rounded-xl border border-[#e2e8f0] shadow-sm min-w-0">
+          <div className="flex items-center justify-between text-xs text-[#64748b] mb-2 font-semibold uppercase tracking-wider">
+            <span className="truncate">Lifetime Net Share (95%)</span>
+            <div className="w-8 h-8 rounded-lg bg-[#eff6ff] text-[#2563eb] flex items-center justify-center shrink-0">
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-black text-slate-900">
+          <p
+            className="text-2xl font-bold text-[#0f172a]"
+            style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+          >
             ₹ {balance.lifetimeEarnings.toLocaleString('en-IN')}
           </p>
-          <div className="mt-2 flex items-center text-xs text-slate-500 font-medium">
-            <span>After 5% platform split</span>
-          </div>
-        </Card>
+          <p className="mt-2 text-xs text-[#64748b]">After 5% platform split</p>
+        </div>
 
-        <Card padding="md" className="border-slate-200">
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-2 font-semibold">
-            <span>Total Disbursed</span>
-            <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+        <div className="p-5 bg-white rounded-xl border border-[#e2e8f0] shadow-sm min-w-0">
+          <div className="flex items-center justify-between text-xs text-[#64748b] mb-2 font-semibold uppercase tracking-wider">
+            <span className="truncate">Total Disbursed</span>
+            <div className="w-8 h-8 rounded-lg bg-[#eff6ff] text-[#2563eb] flex items-center justify-center shrink-0">
               <ArrowDownToLine className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-black text-slate-900">
+          <p
+            className="text-2xl font-bold text-[#0f172a]"
+            style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+          >
             ₹ {balance.totalDisbursed.toLocaleString('en-IN')}
           </p>
-          <div className="mt-2 flex items-center text-xs text-slate-500 font-medium">
-            <span>Settled directly via 180 Pay</span>
-          </div>
-        </Card>
+          <p className="mt-2 text-xs text-[#64748b]">Settled directly via 180 Pay</p>
+        </div>
 
-        <Card padding="md" className="border-slate-200">
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-2 font-semibold">
-            <span>Teacher Subscription</span>
-            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+        <div className="p-5 bg-white rounded-xl border border-[#e2e8f0] shadow-sm min-w-0">
+          <div className="flex items-center justify-between text-xs text-[#64748b] mb-2 font-semibold uppercase tracking-wider">
+            <span className="truncate">Educator Subscription</span>
+            <div className="w-8 h-8 rounded-lg bg-[#eff6ff] text-[#2563eb] flex items-center justify-center shrink-0">
               <Building2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <p className="text-2xl font-black text-slate-900">₹200</p>
-            <span className="text-xs text-slate-500 font-medium">/ month</span>
+          <div className="flex items-baseline gap-1.5">
+            <p
+              className="text-2xl font-bold text-[#0f172a]"
+              style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+            >
+              ₹250
+            </p>
+            <span className="text-xs text-[#64748b]">/ month</span>
           </div>
-          <div className="mt-2 flex items-center space-x-2">
-            <Badge variant="success" size="sm">Active</Badge>
-            <span className="text-[11px] text-slate-500">Auto-renews monthly</span>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            {balance.subscriptionStatus === 'active' ? (
+              <>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]">
+                  Active
+                </span>
+                <span className="text-xs text-[#64748b] truncate">
+                  {balance.subscriptionExpiresAt
+                    ? `Renews ${new Date(balance.subscriptionExpiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                    : 'Monthly billing'}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#fffbeb] text-[#b45309] border border-[#fde68a]">
+                  Inactive
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsUpgradeModalOpen(true)}
+                  className="text-xs font-semibold text-[#2563eb] hover:underline shrink-0"
+                >
+                  Activate Now →
+                </button>
+              </>
+            )}
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Disbursals History Table */}
@@ -317,41 +370,55 @@ export default function PayoutsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {payouts.map((item) => (
-                <tr key={item.payoutId} className="hover:bg-slate-50/80 transition">
-                  <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                    {item.payoutId}
-                  </td>
-                  <td className="py-3.5 px-4 font-black text-emerald-600 text-sm">
-                    ₹ {item.amount.toLocaleString('en-IN')}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <div className="flex items-center space-x-1.5">
-                      <span className="uppercase text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
-                        {item.payoutMethod}
-                      </span>
-                      <span className="font-semibold text-slate-800">{item.recipient}</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400">{item.recipientName}</span>
-                  </td>
-                  <td className="py-3.5 px-4 font-mono text-slate-500">
-                    {item.transactionRef}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                      <span>Completed</span>
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 text-right text-slate-500">
-                    {new Date(item.createdAt).toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="py-10 px-4 text-center text-xs text-slate-400">
+                    Loading live payout ledger...
                   </td>
                 </tr>
-              ))}
+              ) : payouts.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-10 px-4 text-center text-xs text-slate-500">
+                    No payout disbursals yet. Once students enroll in your paid courses, your 95% net share will appear above for instant withdrawal.
+                  </td>
+                </tr>
+              ) : (
+                payouts.map((item) => (
+                  <tr key={item.payoutId} className="hover:bg-slate-50/80 transition">
+                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                      {item.payoutId}
+                    </td>
+                    <td className="py-3.5 px-4 font-black text-emerald-600 text-sm">
+                      ₹ {item.amount.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center space-x-1.5">
+                        <span className="uppercase text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                          {item.payoutMethod}
+                        </span>
+                        <span className="font-semibold text-slate-800">{item.recipient}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400">{item.recipientName}</span>
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-slate-500">
+                      {item.transactionRef}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>Completed</span>
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-right text-slate-500">
+                      {new Date(item.createdAt).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -363,7 +430,7 @@ export default function PayoutsPage() {
         <div className="space-y-1">
           <p className="font-bold">Autonomous 180 Infrastructure Active</p>
           <p className="text-blue-800 leading-relaxed">
-            User access, role audits, and security are powered by <strong>180 Identity</strong> (<code className="font-mono bg-blue-100 px-1 py-0.5 rounded">180_client_3f69...</code>). Commercial batch payments, subscription billing (₹200/mo), and automated instant payouts are processed without intermediaries through <strong>180 Pay</strong>.
+            User access, role audits, and security are powered by <strong>180 Identity</strong> (<code className="font-mono bg-blue-100 px-1 py-0.5 rounded">180_client_3f69...</code>). Commercial batch payments, monthly Educator Subscriptions (₹250/mo to publish courses live), and automated instant payouts are processed without intermediaries through <strong>180 Pay</strong>.
           </p>
         </div>
       </div>
@@ -531,6 +598,17 @@ export default function PayoutsPage() {
           )}
         </form>
       </Modal>
+
+      <SubscriptionUpgradeModal
+        isOpen={isUpgradeModalOpen}
+        tenantSlug="cuet-humanities"
+        onClose={() => setIsUpgradeModalOpen(false)}
+        onUpgraded={() => {
+          setIsUpgradeModalOpen(false);
+          loadPayoutData();
+        }}
+      />
     </div>
   );
 }
+

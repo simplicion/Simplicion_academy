@@ -1,49 +1,65 @@
 'use client';
 
 import React from 'react';
-import { Card } from '@simplicion/ui';
 import { Award, Monitor, HelpCircle, Compass } from 'lucide-react';
-import { WhyUsFeature } from '../lib/tenant-data';
+import { DEFAULT_WEBSITE_CONTENT } from '../lib/site-content';
 
 export interface WhyUsSectionProps {
-  features: WhyUsFeature[];
+  heading?: string;
+  subtitle?: string;
+  features: Array<{ title: string; description: string; icon?: string }>;
 }
 
-export const WhyUsSection: React.FC<WhyUsSectionProps> = ({ features }) => {
-  const iconMap: Record<string, React.ReactNode> = {
-    award: <Award className="w-6 h-6 text-blue-600 dark:text-blue-400" />,
-    monitor: <Monitor className="w-6 h-6 text-amber-600 dark:text-amber-400" />,
-    'help-circle': <HelpCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />,
-    compass: <Compass className="w-6 h-6 text-purple-600 dark:text-purple-400" />,
-  };
+const ICONS = [Award, Monitor, HelpCircle, Compass];
 
+export const WhyUsSection: React.FC<WhyUsSectionProps> = ({
+  heading = DEFAULT_WEBSITE_CONTENT.whyUs.heading,
+  subtitle = DEFAULT_WEBSITE_CONTENT.whyUs.subtitle,
+  features,
+}) => {
   return (
-    <section className="py-16 bg-slate-50/50 dark:bg-slate-900/30 border-b border-slate-100 dark:border-slate-800">
+    <section className="py-16 bg-[#f8fafc] border-b border-[#e2e8f0]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-12">
-          <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white sm:text-4xl">
-            Why Humanities Aspirants Choose Us
+        <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
+          <h2
+            className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0f172a]"
+            style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+          >
+            {heading}
           </h2>
-          <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-            Dedicated pedagogy built specifically for Arts &amp; Humanities entrance examinations.
-          </p>
+          {subtitle && <p className="text-sm text-[#475569]">{subtitle}</p>}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {features.map((feat, idx) => (
-            <Card key={idx} padding="lg" hoverable className="text-left space-y-3">
-              <div className="p-3 bg-blue-50 dark:bg-slate-800 w-fit rounded-xl border border-blue-100 dark:border-slate-700">
-                {iconMap[feat.icon] || <Award className="w-6 h-6 text-blue-600" />}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+          {features.map((feat, idx) => {
+            const Icon = ICONS[idx % ICONS.length];
+            return (
+              <div
+                key={idx}
+                className="bg-white rounded-xl border border-[#e2e8f0] hover:border-[#cbd5e1] p-6 shadow-sm card-interactive space-y-3"
+              >
+                <div
+                  className="p-2.5 w-fit rounded-xl border"
+                  style={{
+                    backgroundColor: 'var(--brand-primary-soft, #eff6ff)',
+                    borderColor: 'var(--brand-primary-border, #dbeafe)',
+                    color: 'var(--brand-primary, #2563eb)',
+                  }}
+                >
+                  <Icon className="w-5 h-5" />
+                </div>
+                <h3
+                  className="text-base font-bold text-[#0f172a]"
+                  style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+                >
+                  {feat.title}
+                </h3>
+                <p className="text-xs text-[#475569] leading-relaxed">{feat.description}</p>
               </div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">{feat.title}</h3>
-              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                {feat.description}
-              </p>
-            </Card>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
   );
 };
-

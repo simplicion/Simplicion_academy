@@ -51,5 +51,24 @@ describe('180 Identity Authentication Infrastructure', () => {
     const isForged = One80IdentityService.verifyWebhookSignature(payload, 'forged_fake_signature_abc123');
     expect(isForged).toBe(false);
   });
+
+  it('builds official 180 Identity hosted Universal SSO URL for login and signup', () => {
+    const loginUrl = One80IdentityService.buildAuthorizationUrl({
+      redirectUri: 'http://localhost:3001/',
+      state: 'csrf_state_123',
+      mode: 'login',
+    });
+    expect(loginUrl).toContain('https://profile.180core.cloud/auth/login');
+    expect(loginUrl).toContain(`client_id=${One80IdentityService.CLIENT_ID}`);
+    expect(loginUrl).toContain('response_type=code');
+    expect(loginUrl).toContain('state=csrf_state_123');
+
+    const signupUrl = One80IdentityService.buildAuthorizationUrl({
+      redirectUri: 'http://localhost:3001/',
+      state: 'csrf_state_456',
+      mode: 'signup',
+    });
+    expect(signupUrl).toContain('mode=signup');
+  });
 });
 

@@ -99,5 +99,37 @@ describe('180 Pay Payment & Automated Split Settlement Engine', () => {
     expect(statusCode).toBe(400);
     expect(jsonBody.error).toContain('Invalid 180 Pay webhook signature');
   });
+
+  it('creates a 180 Pay checkout session in whole currency units (INR)', async () => {
+    const req: any = {
+      tenant,
+      body: {
+        offeringId: 'off_cuet_foundation_2027',
+        offeringTitle: 'CUET UG Foundation 2027',
+        amount: 4000, // Whole currency units per 180 Pay spec
+        currency: 'INR',
+        studentName: 'Aarav Verma',
+        studentEmail: 'aarav@example.com',
+      },
+    };
+
+    let jsonBody: any = null;
+    const res: any = {
+      json: (b: any) => {
+        jsonBody = b;
+      },
+      status: () => ({ json: (b: any) => { jsonBody = b; } }),
+    };
+
+    await One80PayController.createCheckoutSession(req, res);
+
+    expect(jsonBody.success).toBe(true);
+    expect(jsonBody.provider).toBe('180_pay');
+    expect(jsonBody.amount).toBe(4000);
+    expect(jsonBody.currency).toBe('INR');
+    expect(jsonBody.checkoutUrl).toContain('https://profile.180core.cloud/checkout');
+    expect(jsonBody.splits.teacherPayout).toBe(3800);
+    expect(jsonBody.splits.platformFee).toBe(200);
+  });
 });
 
